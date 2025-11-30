@@ -1,0 +1,287 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0f172a; /* Slate 900 */
+  color: #e2e8f0; /* Slate 200 */
+  overflow: hidden; /* App handles scrolling */
+}
+
+/* Universal Monospace Helper */
+.font-mono {
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* 
+   UTILITY: Hide Scrollbar but allow scrolling 
+   Used for horizontal containers where we use the custom ScrollIndicator instead
+*/
+.hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+/* 
+   CUSTOM SCROLLBAR: Floating Pill Style 
+   Used for vertical lists (System Pages, Columns)
+*/
+
+/* Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+
+/* Webkit */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 14px; /* Slightly wider to accommodate the transparent border padding */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Completely transparent track */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #475569; /* Slate 600 */
+  border: 4px solid transparent; /* This creates the "floating" padding effect */
+  background-clip: content-box; 
+  border-radius: 9999px; /* Pill shape */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #6366f1; /* Indigo 500 */
+  border: 4px solid transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Legacy utility support */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* --- Icon Morphing Animation (Swap Effect) --- */
+
+.icon-swap-container {
+  position: relative;
+  width: 24px;
+  height: 24px;
+}
+
+.icon-swap-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Primary Icon (Database) */
+.icon-primary.active {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+.icon-primary.inactive {
+  opacity: 0;
+  transform: rotate(-180deg) scale(0.5);
+}
+
+/* Secondary Icon (Back Arrow) */
+.icon-secondary.active {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+.icon-secondary.inactive {
+  opacity: 0;
+  transform: rotate(180deg) scale(0.5);
+}
+
+
+/* --- Premium Card Animation --- */
+@keyframes card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-card-entry {
+  animation: card-enter 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* --- Mobile Modals Smooth Animation --- */
+
+/* Enter Animations */
+@keyframes mobile-slide-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+@keyframes mobile-slide-down {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(0); }
+}
+@keyframes mobile-fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Exit Animations */
+@keyframes mobile-slide-out-down {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+@keyframes mobile-slide-out-up {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-100%); }
+}
+@keyframes mobile-fade-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Classes */
+.animate-mobile-slide-up {
+  animation: mobile-slide-up 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.animate-mobile-slide-down {
+  animation: mobile-slide-down 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.animate-mobile-fade-in {
+  animation: mobile-fade-in 0.3s ease-out forwards;
+}
+
+.animate-mobile-slide-out-down {
+  animation: mobile-slide-out-down 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.animate-mobile-slide-out-up {
+  animation: mobile-slide-out-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.animate-mobile-fade-out {
+  animation: mobile-fade-out 0.3s ease-out forwards;
+}
+
+
+/* --- FONT SIZING --- */
+html {
+  font-size: 16px; /* Default (medium) */
+}
+html.font-small {
+  font-size: 14.5px;
+}
+html.font-large {
+  font-size: 17.5px;
+}
+
+/* --- THEME OVERRIDES --- */
+
+/* --- MATRIX THEME --- */
+[data-theme="matrix"] body,
+[data-theme="matrix"] .bg-\[\#0f172a\], 
+[data-theme="matrix"] .bg-\[\#0b0f19\] {
+  background-color: #020f03 !important;
+  color: #33ff33 !important;
+}
+[data-theme="matrix"] .bg-\[\#1e293b\],
+[data-theme="matrix"] .bg-\[\#161e2e\] {
+  background-color: #051806 !important;
+}
+[data-theme="matrix"] .border-slate-800, 
+[data-theme="matrix"] .border-slate-700, 
+[data-theme="matrix"] .border-slate-700\/50,
+[data-theme="matrix"] .border-indigo-500\/50 {
+  border-color: #0a2f0c !important;
+}
+[data-theme="matrix"] .text-indigo-400, [data-theme="matrix"] .text-indigo-500, [data-theme="matrix"] .text-amber-400 {
+  color: #00ff00 !important;
+}
+[data-theme="matrix"] .bg-indigo-600, [data-theme="matrix"] .bg-indigo-500 {
+  background-color: #00ff00 !important;
+}
+[data-theme="matrix"] .text-white, [data-theme="matrix"] .text-slate-100 {
+  color: #33ff33 !important;
+}
+[data-theme="matrix"] .text-slate-200, [data-theme="matrix"] .text-slate-300 {
+  color: #55ff55 !important;
+}
+[data-theme="matrix"] .text-slate-400, [data-theme="matrix"] .text-slate-500 {
+  color: #00cc00 !important;
+}
+[data-theme="matrix"] .text-slate-600 {
+  color: #008800 !important;
+}
+[data-theme="matrix"] .shadow-indigo-500\/20 {
+    box-shadow: 0 0 15px 0 rgba(0, 255, 0, 0.2) !important;
+}
+[data-theme="matrix"] .bg-slate-950, [data-theme="matrix"] .bg-slate-950\/70 {
+    background-color: #010a01 !important;
+}
+
+/* --- CINEMA THEME --- */
+[data-theme="cinema"] body,
+[data-theme="cinema"] .bg-\[\#0f172a\], 
+[data-theme="cinema"] .bg-\[\#0b0f19\] {
+  background-color: #1a0000 !important;
+  color: #ffd4d4 !important;
+}
+[data-theme="cinema"] .bg-\[\#1e293b\],
+[data-theme="cinema"] .bg-\[\#161e2e\] {
+  background-color: #2c0000 !important;
+}
+[data-theme="cinema"] .border-slate-800, 
+[data-theme="cinema"] .border-slate-700, 
+[data-theme="cinema"] .border-slate-700\/50,
+[data-theme="cinema"] .border-indigo-500\/50 {
+  border-color: #590000 !important;
+}
+[data-theme="cinema"] .text-indigo-400, [data-theme="cinema"] .text-indigo-500, [data-theme="cinema"] .text-amber-400 {
+  color: #ffb833 !important; /* Gold */
+}
+[data-theme="cinema"] .bg-indigo-600, [data-theme="cinema"] .bg-indigo-500 {
+  background-color: #e5a000 !important;
+}
+[data-theme="cinema"] .text-white, [data-theme="cinema"] .text-slate-100, [data-theme="cinema"] .text-slate-200, [data-theme="cinema"] .text-slate-300 {
+  color: #fff0f0 !important;
+}
+[data-theme="cinema"] .text-slate-400, [data-theme="cinema"] .text-slate-500 {
+  color: #ffaaaa !important;
+}
+[data-theme="cinema"] .text-slate-600 {
+  color: #b37777 !important;
+}
+[data-theme="cinema"] .shadow-indigo-500\/20 {
+    box-shadow: 0 0 15px 0 rgba(255, 184, 51, 0.2) !important;
+}
+[data-theme="cinema"] .bg-slate-950, [data-theme="cinema"] .bg-slate-950\/70 {
+    background-color: #110000 !important;
+}
+
+/* --- REFRESH BUTTON BREATHING ANIMATION --- */
+@keyframes breathing-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+    border-color: rgba(99, 102, 241, 0.6);
+  }
+}
+
+.animate-breathing-glow {
+  animation: breathing-glow 2.5s ease-in-out infinite;
+}
