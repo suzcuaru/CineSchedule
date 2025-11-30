@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Globe, Eye, EyeOff, Zap, CheckCircle, XCircle, AlertTriangle, Type, Brush, Rows, KeyRound } from 'lucide-react';
+import { Settings, Globe, Eye, EyeOff, Zap, CheckCircle, XCircle, AlertTriangle, Type, Brush, Rows, KeyRound, RefreshCw } from 'lucide-react';
 import { AppSettings } from '../../types';
 import { BackendService } from '../../backend/aggregator';
 import { ViewContainer, GridSection, Card, InputGroup, ToggleCard, SegmentedControl } from './SystemUI';
@@ -134,8 +134,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
                               onChange={(v) => onUpdate('theme', v)}
                               options={[
                                   { label: 'Стандарт', value: 'default' },
-                                  { label: 'Матрица', value: 'matrix' },
-                                  { label: 'Кино', value: 'cinema' }
+                                  { label: 'Сепия', value: 'sepia' },
+                                  { label: 'Сумерки', value: 'dusk' }
                               ]}
                           />
                       </div>
@@ -143,7 +143,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
               </Card>
           </GridSection>
 
-          <GridSection title="Поведение Приложения" cols={2}>
+          <GridSection title="Поведение и автоматизация" cols={2}>
              <ToggleCard 
                 label="Аварийный режим" 
                 desc="При недоступности сервера, показывать демонстрационные данные. Если отключено, будет показан пустой экран." 
@@ -158,6 +158,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
                 enabled={settings.highlightCurrent}
                 onToggle={() => onUpdate('highlightCurrent', !settings.highlightCurrent)}
              />
+             <ToggleCard 
+                label="Анимации интерфейса" 
+                desc="Плавные переходы и эффекты. Отключение может повысить производительность на слабых устройствах." 
+                icon={Zap}
+                enabled={settings.enableAnimations}
+                onToggle={() => onUpdate('enableAnimations', !settings.enableAnimations)}
+             />
+             <Card>
+                <div className="flex flex-col justify-between h-full">
+                    <div>
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 rounded-lg bg-slate-800 text-slate-400">
+                                <RefreshCw size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-200">Авто-обновление</h3>
+                                <p className="text-sm text-slate-500 leading-relaxed">
+                                    Фоновая синхронизация данных.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-4">
+                        <div className="flex items-center bg-slate-950/70 border border-slate-800 rounded-lg p-1 w-full">
+                            {[
+                                { label: 'Выкл', value: '0' },
+                                { label: '5 мин', value: '5' },
+                                { label: '10 мин', value: '10' },
+                                { label: '15 мин', value: '15' }
+                            ].map(opt => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => onUpdate('autoRefreshInterval', Number(opt.value))}
+                                  className={`
+                                    flex-1 px-2 py-2 text-sm font-bold rounded-md transition-all duration-200 text-center
+                                    ${String(settings.autoRefreshInterval) === opt.value 
+                                        ? 'bg-indigo-600 text-white shadow' 
+                                        : 'text-slate-400 hover:bg-slate-700/50'}
+                                  `}
+                                >
+                                  {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </Card>
           </GridSection>
       </ViewContainer>
   );

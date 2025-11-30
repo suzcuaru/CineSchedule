@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HelpCircle, Layers, Database, FileSpreadsheet, MousePointer, Fingerprint, ChevronRight, CheckCircle2, AlertCircle, Server, LayoutDashboard, Keyboard, Move, AppWindow, Download } from 'lucide-react';
 import { CONTENT_STATUS_CONFIG } from '../../types';
@@ -14,6 +15,17 @@ const API_DOCS_CONTENT = `
 
 ---
 
+## Авторизация
+
+Все запросы к API должны содержать заголовок \`Authorization\` для аутентификации.
+
+- **Тип:** Bearer Token
+- **Заголовок:** \`Authorization: Bearer YOUR_API_KEY_HERE\`
+
+Замените \`YOUR_API_KEY_HERE\` на ваш действительный API-ключ, полученный из настроек приложения. Запросы без валидного ключа будут отклонены с ошибкой \`401 Unauthorized\`.
+
+---
+
 ## 1. Получение расписания на день
 
 Загружает полное расписание для всех залов на указанную дату. Используется для главной панели и сетки по залам.
@@ -25,6 +37,7 @@ const API_DOCS_CONTENT = `
 
 **Пример запроса:**
 \`GET http://192.168.1.10:3000/api/v3/schedule/day?date=2024-07-15\`
+\`Authorization: Bearer YOUR_API_KEY_HERE\`
 
 **Ответ \`200 OK\`:**
 \`\`\`json
@@ -60,6 +73,7 @@ const API_DOCS_CONTENT = `
 
 **Пример запроса:**
 \`GET http://192.168.1.10:3000/api/v3/schedule/week?hall=3&from=2024-07-15&to=2024-07-21\`
+\`Authorization: Bearer YOUR_API_KEY_HERE\`
 
 **Ответ \`200 OK\`:**
 \`\`\`json

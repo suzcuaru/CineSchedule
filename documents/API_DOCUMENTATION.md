@@ -10,10 +10,12 @@
 
 ## Авторизация
 
-Все запросы к API должны содержать заголовок `Authorization`. В качестве значения необходимо передать ваш API-ключ в формате Bearer token.
+Все запросы к API должны содержать заголовок `Authorization` для аутентификации.
 
-**Пример:**
-`Authorization: Bearer YOUR_API_KEY_HERE`
+- **Тип:** Bearer Token
+- **Заголовок:** `Authorization: Bearer YOUR_API_KEY_HERE`
+
+Замените `YOUR_API_KEY_HERE` на ваш действительный API-ключ, полученный из настроек приложения. Запросы без валидного ключа будут отклонены с ошибкой `401 Unauthorized`.
 
 ---
 
@@ -28,6 +30,7 @@
 
 **Пример запроса:**
 `GET http://192.168.1.10:3000/api/v3/schedule/day?date=2024-07-15`
+`Authorization: Bearer YOUR_API_KEY_HERE`
 
 **Ответ `200 OK`:**
 ```json
@@ -63,6 +66,7 @@
 
 **Пример запроса:**
 `GET http://192.168.1.10:3000/api/v3/schedule/week?hall=3&from=2024-07-15&to=2024-07-21`
+`Authorization: Bearer YOUR_API_KEY_HERE`
 
 **Ответ `200 OK`:**
 ```json

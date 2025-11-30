@@ -17,7 +17,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
       viewMode, appSettings, isLoading, currentDashboardSessions, 
       hallCount, handleHallClick, currentWeeklyHallSessions, 
       getWeeklyDates, currentDate, updateSetting, handleNavigate,
-      selectedMovieName, handleSelectMovie
+      selectedMovieName, handleSelectMovie, refreshKey
   } = props;
 
   const responsiveColumnClass = "w-full md:w-1/2 lg:w-1/3 2xl:w-1/4";
@@ -43,6 +43,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     columnWidthClass={responsiveColumnClass}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    refreshKey={refreshKey}
                 />
               );
           case 'hall_weekly':
@@ -56,6 +57,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     columnWidthClass={responsiveColumnClass}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    refreshKey={refreshKey}
                 />
               );
           case 'settings': return <SettingsView settings={appSettings} onUpdate={updateSetting} />;

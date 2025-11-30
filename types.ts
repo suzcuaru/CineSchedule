@@ -48,9 +48,9 @@ export interface AppSettings {
   highlightCurrent: boolean;
   fontSize: 'small' | 'medium' | 'large';
   cardDensity: 'compact' | 'default';
-  theme: 'default' | 'matrix' | 'cinema';
-  // FIX: Added 'enableAnimations' property to resolve type errors in components/SystemViews.tsx and backend/aggregator.ts.
+  theme: 'default' | 'sepia' | 'dusk';
   enableAnimations: boolean;
+  autoRefreshInterval: number; // in minutes, 0 = off
 }
 
 // --- UI HELPERS ---

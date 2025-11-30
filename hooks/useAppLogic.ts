@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDate, getWeeklyDates } from '../services/dataService';
 import { BackendService } from '../backend/aggregator'; 
 import { MovieSession, ContentStatus, ViewMode, AppSettings } from '../types';
@@ -17,6 +17,7 @@ export const useAppLogic = () => {
       cardDensity: 'default',
       theme: 'default',
       enableAnimations: true,
+      autoRefreshInterval: 0,
   });
 
   const [dashboardSessions, setDashboardSessions] = useState<MovieSession[]>([]);
@@ -24,9 +25,11 @@ export const useAppLogic = () => {
   
   const [isLoading, setIsLoading] = useState<boolean>(true); 
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false); 
+  const [refreshKey, setRefreshKey] = useState(Date.now());
 
   const [hallCount] = useState<number>(8);
   const [selectedMovieName, setSelectedMovieName] = useState<string | null>(null);
+  const initialLoadDone = useRef(false);
 
   // Subscribe to settings changes from the backend service (e.g., on initial load)
   useEffect(() => {
@@ -51,17 +54,21 @@ export const useAppLogic = () => {
   };
 
   const loadDashboard = useCallback(async (date: string) => {
-    setIsLoading(true);
     const sessions = await BackendService.getDailySchedule(date);
     setDashboardSessions(sessions);
-    setIsLoading(false);
+    if (!initialLoadDone.current) {
+      setIsLoading(false);
+      initialLoadDone.current = true;
+    }
   }, []);
 
   const loadWeeklyData = useCallback(async (hallName: string, centerDate: string) => {
-    setIsLoading(true);
     const sessions = await BackendService.getWeeklyHallSchedule(hallName, centerDate);
     setWeeklyHallSessions(sessions);
-    setIsLoading(false);
+     if (!initialLoadDone.current) {
+      setIsLoading(false);
+      initialLoadDone.current = true;
+    }
   }, []);
 
   // Effect to load data based on viewMode and date changes
@@ -81,8 +88,28 @@ export const useAppLogic = () => {
          } else if (viewMode.type === 'hall_weekly') {
              loadWeeklyData(viewMode.hallName, viewMode.centerDate);
          }
+         // No refreshKey update here to prevent animation on background updates
       });
   }, [viewMode, currentDate, loadDashboard, loadWeeklyData]);
+
+  // Effect for auto-refresh polling
+  useEffect(() => {
+    if (appSettings.autoRefreshInterval > 0) {
+        const intervalInMs = appSettings.autoRefreshInterval * 60 * 1000;
+        
+        const backgroundRefresh = async () => {
+            // This is a background task, so no visual loading indicators
+            if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
+                await loadDashboard(currentDate);
+            } else if (viewMode.type === 'hall_weekly') {
+                await loadWeeklyData(viewMode.hallName, viewMode.centerDate);
+            }
+        };
+
+        const intervalId = setInterval(backgroundRefresh, intervalInMs);
+        return () => clearInterval(intervalId);
+    }
+  }, [appSettings.autoRefreshInterval, currentDate, viewMode, loadDashboard, loadWeeklyData]);
 
   const handleHallClick = (hallName: string) => {
     setViewMode({ type: 'hall_weekly', hallName, centerDate: currentDate });
@@ -93,12 +120,25 @@ export const useAppLogic = () => {
       setIsLogoMenuOpen(false);
   };
 
-  const handleRefresh = async () => {
-      setIsRefreshing(true); 
-      await BackendService.syncData();
-      // The subscription will trigger a data reload automatically
-      setIsRefreshing(false); 
-  };
+  const handleRefresh = useCallback(async () => {
+      setIsRefreshing(true);
+      
+      const dataFetchPromise = (async () => {
+        if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
+            await loadDashboard(currentDate);
+        } else if (viewMode.type === 'hall_weekly') {
+            await loadWeeklyData(viewMode.hallName, viewMode.centerDate);
+        }
+      })();
+
+      // Ensure the loading animation is visible for a minimum duration for better user experience.
+      const minDurationPromise = new Promise(resolve => setTimeout(resolve, 800));
+
+      await Promise.all([dataFetchPromise, minDurationPromise]);
+      
+      setIsRefreshing(false);
+      // setRefreshKey(Date.now()); // Removed to prevent re-animation on refresh
+  }, [viewMode, currentDate, loadDashboard, loadWeeklyData]);
 
   const handleStatusChange = async (session: MovieSession, newStatus: ContentStatus) => {
       await BackendService.setSessionStatus(session, newStatus);
@@ -128,6 +168,7 @@ export const useAppLogic = () => {
     handleSelectMovie,
     currentDashboardSessions: dashboardSessions,
     currentWeeklyHallSessions: weeklyHallSessions, // NEW
-    getWeeklyDates
+    getWeeklyDates,
+    refreshKey,
   };
 };

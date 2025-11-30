@@ -2,8 +2,8 @@
 // Редактируйте этот файл, чтобы обновить данные в приложении.
 
 export const APP_INFO = {
-  version: "v2.6.0",
-  build: "Build bd7e291",
+  version: "v2.6.1",
+  build: "Build 0fa3262",
   developer: "Suzcuaru",
   supportEmail: "support@cinetech.ru",
   website: "cinetech.ru",

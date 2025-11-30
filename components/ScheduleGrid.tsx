@@ -1,4 +1,3 @@
-
 import React, { useMemo, memo, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { MovieSession, AppSettings } from '../types';
 import { MovieCard, SkeletonMovieCard } from './MovieCard';
@@ -15,6 +14,7 @@ interface ScheduleGridProps {
   columnWidthClass?: string; 
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
+  refreshKey: number;
 }
 
 interface HallColumnProps {
@@ -27,6 +27,7 @@ interface HallColumnProps {
     onVisibilityChange: (id: string, isVisible: boolean) => void;
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
+    refreshKey: number;
 }
 
 // --- HELPER: Determine Column Status ---
@@ -48,7 +49,7 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie }: HallColumnProps) => {
+const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: HallColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const colStatus = useMemo(() => getColumnStatus(sessions), [sessions]);
@@ -108,7 +109,7 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
 
                 <div className="flex justify-between items-end relative z-10">
                     <div className="flex flex-col">
-                         <span className={`text-xs font-bold uppercase tracking-widest mb-0.5 ${colStatus === 'default' ? 'text-slate-500' : 'text-white/60'}`}>Кинозал</span>
+                         <span className={`hall-header-subtitle text-xs font-bold uppercase tracking-widest mb-0.5 ${colStatus === 'default' ? 'text-slate-500' : 'text-white/60'}`}>Кинозал</span>
                          <h2 className={`text-2xl font-black transition-colors ${textStyle}`}>
                             No. {hallId}
                          </h2>
@@ -141,7 +142,7 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
                         sessions && sessions.length > 0 ? (
                             sessions.map((session, idx) => (
                                 <MovieCard 
-                                    key={session.id} 
+                                    key={`${session.id}-${refreshKey}`} 
                                     session={session} 
                                     settings={settings}
                                     index={idx}
@@ -169,7 +170,7 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
     );
 });
 
-export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie }) => {
+export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, refreshKey }) => {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [visibleHalls, setVisibleHalls] = useState<Set<string>>(new Set(['1']));
@@ -298,6 +299,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount,
                     onVisibilityChange={handleVisibilityChange}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={onSelectMovie}
+                    refreshKey={refreshKey}
                 />
                 ))}
             </div>
