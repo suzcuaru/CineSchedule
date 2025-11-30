@@ -1,0 +1,21 @@
+{
+  "short_name": "CineSchedule",
+  "name": "CineSchedule - Расписание Киномеханика",
+  "description": "Профессиональное приложение для киномехаников для управления расписанием, анализа сеансов и отслеживания новинок проката.",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "assets/icons/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#0f172a"
+}

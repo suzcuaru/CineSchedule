@@ -103,7 +103,7 @@ export const NavigationMenus: React.FC<NavigationMenusProps> = ({
                     onClick={handleRequestClose}
                 />
                 <div 
-                    className={`md:hidden fixed top-0 left-0 w-full z-[101] bg-[#1e293b] border-b border-slate-700 rounded-b-2xl shadow-2xl ${isAnimatingOut ? 'animate-mobile-slide-out-up' : 'animate-mobile-slide-down'} overflow-hidden ease-out will-change-transform`}
+                    className={`cineschedule-nav-menu md:hidden fixed top-0 left-0 w-full z-[101] bg-[#1e293b] border-b border-slate-700 rounded-b-2xl shadow-2xl ${isAnimatingOut ? 'animate-mobile-slide-out-up' : 'animate-mobile-slide-down'} overflow-hidden ease-out will-change-transform`}
                     style={{ 
                         transform: menuDragY !== 0 ? `translateY(${menuDragY}px)` : undefined,
                         transition: menuDragY !== 0 ? 'none' : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
@@ -139,6 +139,7 @@ export const NavigationMenus: React.FC<NavigationMenusProps> = ({
         {/* DESKTOP MENU (Inline Absolute) */}
         <div className="hidden md:block absolute top-full left-0 pt-4 w-80 z-[60]">
             <div className={`
+                cineschedule-nav-menu
                 bg-[#1e293b]/95 backdrop-blur-lg 
                 border border-slate-700/80 rounded-xl 
                 shadow-2xl shadow-indigo-950/50 

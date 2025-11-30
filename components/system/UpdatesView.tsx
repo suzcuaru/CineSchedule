@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Info, User, Globe, Mail, Code, Hash, ChevronRight, Github, Download, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Info, User, Globe, Mail, Code, Hash, ChevronRight, Github, Download, RefreshCw, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 import { APP_INFO } from '../../config/appData';
 import { ViewContainer, GridSection, Card } from './SystemUI';
 
@@ -27,7 +27,32 @@ type CheckState = {
     latestVersion?: string;
     downloadUrl?: string;
     errorMessage?: string;
+    releaseNotes?: string;
 }
+
+const LICENSE_TEXT = `MIT License
+
+Copyright (c) 2024 Suzcuaru
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+`;
+
 
 export const UpdatesView: React.FC = () => {
     const [checkState, setCheckState] = useState<CheckState>({ status: 'idle' });
@@ -49,7 +74,7 @@ export const UpdatesView: React.FC = () => {
                 throw new Error(`Ошибка GitHub API: ${response.status}`);
             }
 
-            const releases: { tag_name: string, html_url: string }[] = await response.json();
+            const releases: { tag_name: string, html_url: string, body: string }[] = await response.json();
 
             if (!releases || releases.length === 0) {
                 setCheckState({
@@ -62,11 +87,13 @@ export const UpdatesView: React.FC = () => {
             const latestRelease = releases[0];
             const latestVersion = latestRelease.tag_name;
             const downloadUrl = latestRelease.html_url;
+            const releaseNotes = latestRelease.body;
 
             setCheckState({
                 status: 'checked',
                 latestVersion,
                 downloadUrl,
+                releaseNotes,
             });
 
         } catch (error: any) {
@@ -77,6 +104,18 @@ export const UpdatesView: React.FC = () => {
             });
         }
     }
+
+    const handleDownloadLicense = () => {
+        const blob = new Blob([LICENSE_TEXT.trim()], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'LICENSE.md';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
 
     const renderUpdateCheck = () => {
         const currentVersion = APP_INFO.version.replace('v', '');
@@ -102,30 +141,50 @@ export const UpdatesView: React.FC = () => {
                 );
             case 'checked':
                 return isNewVersionAvailable ? (
-                    <div className="flex flex-col md:flex-row gap-6 items-center p-4">
-                        <div className="flex-1">
-                            <h3 className="text-xl font-bold text-emerald-400 mb-1">Доступна новая версия!</h3>
-                            <p className="text-slate-300 font-mono">
-                                <span className="text-slate-500">{currentVersion}</span> → <span className="font-bold text-emerald-300">{latestVersion}</span>
-                            </p>
+                    <div className="flex flex-col p-4">
+                        <div className="flex flex-col md:flex-row gap-6 items-center">
+                            <div className="flex-1">
+                                <h3 className="text-xl font-bold text-emerald-400 mb-1">Доступна новая версия!</h3>
+                                <p className="text-slate-300 font-mono">
+                                    <span className="text-slate-500">{currentVersion}</span> → <span className="font-bold text-emerald-300">{latestVersion}</span>
+                                </p>
+                            </div>
+                            <a 
+                                href={checkState.downloadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                <Download size={20} />
+                                <span>Скачать</span>
+                            </a>
                         </div>
-                        <a 
-                            href={checkState.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-lg shadow-emerald-500/20"
-                        >
-                            <Download size={20} />
-                            <span>Скачать</span>
-                        </a>
+                         {checkState.releaseNotes && (
+                            <div className="mt-4 border-t border-slate-700/50 pt-4">
+                                <h4 className="text-base font-bold text-slate-400 mb-2 uppercase tracking-wider">Что нового в v{latestVersion}:</h4>
+                                <div className="max-h-40 overflow-y-auto bg-slate-950/70 p-4 rounded-lg text-sm text-slate-300 whitespace-pre-wrap custom-scrollbar border border-slate-800">
+                                    {checkState.releaseNotes}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center gap-4 p-8 text-center">
-                        <CheckCircle size={28} className="text-emerald-500" />
-                        <div>
-                            <p className="text-lg font-bold text-emerald-400">У вас последняя версия</p>
-                            <p className="text-sm text-slate-500 font-mono">{currentVersion}</p>
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="bg-slate-950/40 border border-slate-700/50 rounded-2xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)] py-6">
+                            <div className="flex flex-col items-center justify-center gap-1 text-center">
+                                <CheckCircle size={24} className="text-emerald-400 mb-2" />
+                                <p className="text-lg font-bold text-emerald-400">У вас последняя версия</p>
+                                <p className="text-sm text-slate-500 font-mono">{currentVersion}</p>
+                            </div>
                         </div>
+                        {checkState.releaseNotes && (
+                            <div className="mt-2">
+                                <h4 className="text-base font-bold text-slate-400 mb-2 uppercase tracking-wider px-2">Что нового в этой версии:</h4>
+                                <div className="max-h-40 overflow-y-auto bg-slate-950/70 p-4 rounded-lg text-sm text-slate-300 whitespace-pre-wrap custom-scrollbar border border-slate-800">
+                                    {checkState.releaseNotes}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             case 'idle':
@@ -157,6 +216,29 @@ export const UpdatesView: React.FC = () => {
                     <InfoRow icon={Code} label="Версия" value={APP_INFO.version} />
                     <div className="my-2 border-t border-slate-700/50" />
                     <InfoRow icon={Hash} label="Сборка" value={APP_INFO.build} />
+                </Card>
+            </GridSection>
+
+            <GridSection title="Лицензирование">
+                <Card>
+                    <div className="flex flex-col md:flex-row gap-6 items-center">
+                        <div className="flex-1">
+                            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
+                                <FileText size={24} className="text-indigo-400"/>
+                                Условия использования
+                            </h3>
+                            <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                                Приложение распространяется по свободной лицензии MIT. Эта лицензия разрешает бесплатное использование, копирование, изменение, слияние, публикацию, распространение, сублицензирование и/или продажу копий Программного обеспечения.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={handleDownloadLicense}
+                            className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold transition-all"
+                        >
+                            <Download size={20} />
+                            <span>Скачать файл лицензии</span>
+                        </button>
+                    </div>
                 </Card>
             </GridSection>
 

@@ -1,3 +1,4 @@
+
 import { AppSettings, MovieSession, ContentStatus } from '../types';
 import { LocalDB } from './database';
 import { getWeeklyDates, formatDate } from '../services/dataService';
@@ -26,7 +27,8 @@ class AggregationService {
         enableAnimations: true,
         fontSize: 'medium',
         cardDensity: 'default',
-        theme: 'default'
+        theme: 'default',
+        autoRefreshInterval: 0, // off by default
     };
     this.config = stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
     this.notify();

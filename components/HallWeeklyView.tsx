@@ -1,4 +1,3 @@
-
 import React, { memo, useMemo, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { MovieSession, AppSettings } from '../types';
 import { MovieCard, SkeletonMovieCard } from './MovieCard';
@@ -16,6 +15,7 @@ interface HallWeeklyViewProps {
   columnWidthClass?: string;
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
+  refreshKey: number;
 }
 
 interface DayColumnProps {
@@ -29,6 +29,7 @@ interface DayColumnProps {
     onVisibilityChange: (id: string, isVisible: boolean) => void;
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
+    refreshKey: number;
 }
 
 const getColumnStatus = (sessions: MovieSession[]) => {
@@ -40,7 +41,7 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie }: DayColumnProps) => {
+const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: DayColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const dateStr = formatDate(date);
@@ -142,7 +143,7 @@ const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, wi
                         hasData ? (
                             sortedSessions.map((session, idx) => (
                                 <MovieCard 
-                                    key={session.id} 
+                                    key={`${session.id}-${refreshKey}`} 
                                     session={session} 
                                     settings={settings}
                                     index={idx}
@@ -178,6 +179,7 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
   columnWidthClass = "w-full",
   selectedMovieName,
   onSelectMovie,
+  refreshKey,
 }) => {
   
   const todayStr = formatDate(new Date());
@@ -306,6 +308,7 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
                     onVisibilityChange={handleVisibilityChange}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={onSelectMovie}
+                    refreshKey={refreshKey}
                 />
              );
           })}

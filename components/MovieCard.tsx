@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, memo, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MovieSession, CONTENT_STATUS_CONFIG, AppSettings, ContentStatus } from '../types';
-import { Play, Hourglass, Clock, ChevronDown, ChevronUp, Check, Monitor } from 'lucide-react';
+import { Play, Hourglass, Clock, ChevronDown, ChevronUp, Check, Monitor, RefreshCw } from 'lucide-react';
 import { BackendService } from '../backend/aggregator';
 
 // Detect if it's a touch device once
@@ -275,23 +274,8 @@ const StatusSelect = ({
 // --- SKELETON COMPONENT ---
 export const SkeletonMovieCard = () => {
   return (
-    <div className="w-full rounded-xl bg-[#1e293b] border border-slate-700/50 p-3 flex flex-col space-y-3 animate-pulse select-none relative overflow-hidden">
-       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-700/10 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]"></div>
-       <div className="flex-none flex justify-between items-center border-b border-slate-700/50 pb-2">
-          <div className="h-5 w-16 bg-slate-700/50 rounded"></div>
-          <div className="flex gap-1">
-             <div className="h-4 w-8 bg-slate-700/50 rounded"></div>
-             <div className="h-4 w-8 bg-slate-700/50 rounded"></div>
-          </div>
-       </div>
-       <div className="flex-grow flex flex-col justify-center space-y-1.5 py-3">
-          <div className="h-6 w-3/4 bg-slate-600/50 rounded"></div>
-          <div className="h-4 w-1/2 bg-slate-700/50 rounded"></div>
-       </div>
-       <div className="flex-none flex justify-between items-center pt-2 border-t border-slate-700/50 mt-1">
-          <div className="h-4 w-24 bg-slate-700/50 rounded"></div>
-          <div className="h-4 w-16 bg-slate-700/30 rounded"></div>
-       </div>
+    <div className="w-full h-[168px] rounded-xl bg-[#1e293b] border border-slate-700/50 p-3 flex items-center justify-center select-none">
+       <RefreshCw size={32} className="text-slate-600 animate-spin" />
     </div>
   );
 };
@@ -365,7 +349,7 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
   const isLive = checkIsLive();
   const shouldHighlight = isLive && settings.highlightCurrent;
   const isCompact = settings.cardDensity === 'compact';
-  const enableAnimations = true; // Kept for entry animation
+  const enableAnimations = settings.enableAnimations;
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [tooltipState, setTooltipState] = useState<{ 
@@ -483,13 +467,13 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
                         ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-400/50 shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] hover:z-[40]' 
                         : 'bg-[#1e293b] border-slate-700 hover:border-slate-500 hover:z-[40]'
             }
-            animate-card-entry transition-all duration-200
+            animate-cascade-in transition-all duration-200
             overflow-hidden
         `}
         >
         <div className={`absolute top-0 bottom-0 left-0 w-1 ${statusConfig.bg}`} />
 
-        <div className={`pl-3 pr-2 flex flex-col w-full ${isCompact ? 'py-1.5' : 'py-2'}`}>
+        <div className={`pl-3 pr-2 flex flex-col w-full card-content-wrapper ${isCompact ? 'py-1.5' : 'py-2'}`}>
             
             <div className={`flex-none flex justify-between items-center leading-none border-b border-slate-700/50 ${isCompact ? 'pb-1.5' : 'pb-2'}`}>
                 <div className="flex items-baseline gap-2 font-mono">
@@ -645,7 +629,9 @@ const arePropsEqual = (prev: MovieCardProps, next: MovieCardProps) => {
         prev.session.time === next.session.time;
 
     const indexUnchanged = prev.index === next.index;
-    const settingsUnchanged = prev.settings.cardDensity === next.settings.cardDensity && prev.settings.highlightCurrent === next.settings.highlightCurrent;
+    const settingsUnchanged = prev.settings.cardDensity === next.settings.cardDensity 
+        && prev.settings.highlightCurrent === next.settings.highlightCurrent
+        && prev.settings.enableAnimations === next.settings.enableAnimations;
 
     // Rerender only if this card's own selection state changes
     const wasSelected = prev.selectedMovieName === prev.session.name;

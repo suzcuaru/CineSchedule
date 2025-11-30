@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
 
@@ -95,13 +94,13 @@ export const GestureItem: React.FC<{ icon: any, title: string, desc: string }> =
 );
 
 export const SegmentedControl: React.FC<{ options: {label: string, value: string}[], value: string, onChange: (v: string) => void }> = ({ options, value, onChange }) => (
-    <div className="flex items-center bg-slate-950/70 border border-slate-800 rounded-lg p-1 w-full md:w-auto">
+    <div className="flex items-center bg-slate-950/70 border border-slate-800 rounded-lg p-1 w-full md:w-80">
       {options.map(opt => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={`
-            flex-1 px-3 py-1.5 md:px-4 md:py-2 text-sm font-bold rounded-md transition-all duration-200
+            flex-1 px-3 py-1.5 md:px-4 md:py-2 text-sm font-bold rounded-md transition-all duration-200 text-center
             ${value === opt.value ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:bg-slate-700/50'}
           `}
         >

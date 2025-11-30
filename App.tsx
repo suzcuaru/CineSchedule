@@ -24,7 +24,14 @@ const App: React.FC = () => {
     root.classList.remove('font-small', 'font-medium', 'font-large');
     root.classList.add(`font-${appLogic.appSettings.fontSize}`);
 
-  }, [appLogic.appSettings.theme, appLogic.appSettings.fontSize]);
+    // Set animations
+    if (appLogic.appSettings.enableAnimations) {
+        root.classList.remove('animations-disabled');
+    } else {
+        root.classList.add('animations-disabled');
+    }
+
+  }, [appLogic.appSettings.theme, appLogic.appSettings.fontSize, appLogic.appSettings.enableAnimations]);
 
 
   // 4. Render Specific Layout
