@@ -1,9 +1,10 @@
 
 import React, { useRef } from 'react';
-import { RefreshCw, Database, ChevronDown, ArrowLeft } from 'lucide-react';
+import { RefreshCw, Database, ChevronDown, ArrowLeft, Check, X } from 'lucide-react';
 import { CustomDatePicker } from './CustomDatePicker';
 import { NavigationMenus } from './NavigationMenus';
 import { ViewMode } from '../types';
+import { RefreshStatus } from '../hooks/useAppLogic';
 
 interface NavbarProps {
   currentDate: string;
@@ -12,7 +13,7 @@ interface NavbarProps {
   onNavigate: (mode: ViewMode) => void;
   onRefresh: () => void;
   isLoading: boolean;
-  isRefreshing: boolean; // Added
+  refreshStatus: RefreshStatus;
   isLogoMenuOpen: boolean;
   setIsLogoMenuOpen: (v: boolean) => void;
 }
@@ -24,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   onRefresh,
   isLoading,
-  isRefreshing,
+  refreshStatus,
   isLogoMenuOpen,
   setIsLogoMenuOpen
 }) => {
@@ -50,6 +51,35 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (window.innerWidth >= 768 && isLogoMenuOpen) {
           setIsLogoMenuOpen(false);
       }
+  };
+
+  const renderRefreshIcon = () => {
+    switch (refreshStatus) {
+        case 'loading':
+            return <RefreshCw size={24} className="animate-smooth-spin text-indigo-400" />;
+        case 'success':
+            return <Check size={26} className="text-emerald-400 animate-check-pop" />;
+        case 'error':
+            return <X size={26} className="text-red-500 animate-error-pop" />;
+        default:
+            return <RefreshCw size={24} />;
+    }
+  };
+
+  const getRefreshButtonClasses = () => {
+    const base = "h-11 w-11 flex items-center justify-center border rounded-xl transition-all duration-300 active:scale-90 shrink-0 disabled:cursor-not-allowed bg-[#1e293b] ";
+    
+    if (refreshStatus === 'loading') {
+        return base + "border-indigo-500/60 animate-breathing-glow text-indigo-400";
+    }
+    if (refreshStatus === 'success') {
+        return base + "border-emerald-500/40 shadow-lg shadow-emerald-500/5";
+    }
+    if (refreshStatus === 'error') {
+        return base + "border-red-500/40 shadow-lg shadow-red-500/5";
+    }
+    
+    return base + "text-slate-400 hover:text-white hover:bg-slate-700 border-slate-700";
   };
 
   return (
@@ -122,11 +152,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="flex items-center shrink-0 z-20 justify-end">
                     <button 
                         onClick={onRefresh}
-                        disabled={isRefreshing}
-                        className={`h-11 w-11 flex items-center justify-center text-slate-400 hover:text-white bg-[#1e293b] hover:bg-slate-700 border rounded-xl transition-all active:scale-95 shrink-0 disabled:cursor-not-allowed ${isRefreshing ? 'bg-slate-800 animate-breathing-glow' : 'border-slate-700'}`}
+                        disabled={refreshStatus === 'loading'}
+                        className={getRefreshButtonClasses()}
                     >
-                        {/* Use isRefreshing here for spinner */}
-                        <RefreshCw size={24} className={isRefreshing ? 'animate-spin text-indigo-400' : ''} />
+                        {renderRefreshIcon()}
                     </button>
                 </div>
             )}

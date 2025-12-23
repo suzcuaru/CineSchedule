@@ -34,7 +34,6 @@ export const formatDate = (date: Date): string => {
 export const getWeeklyDates = (centerDateStr: string): Date[] => {
   const center = new Date(centerDateStr);
   const dates: Date[] = [];
-  // Range: Current Date to +5 days (6 days total)
   for (let i = 0; i <= 5; i++) {
     const d = new Date(center);
     d.setDate(center.getDate() + i);
@@ -47,56 +46,69 @@ export const getCalendarDays = (currentDateStr: string): CalendarDay[] => {
   const current = new Date(currentDateStr);
   const year = current.getFullYear();
   const month = current.getMonth(); 
-
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
-  
   const daysInMonth = lastDayOfMonth.getDate();
-  
   let startingDayOfWeek = firstDayOfMonth.getDay(); 
   if (startingDayOfWeek === 0) startingDayOfWeek = 7; 
-
   const days: CalendarDay[] = [];
   const todayStr = formatDate(new Date());
-
   for (let i = 1; i < startingDayOfWeek; i++) {
     const d = new Date(year, month, 1 - (startingDayOfWeek - i));
-    days.push({
-      date: d,
-      isCurrentMonth: false,
-      isToday: formatDate(d) === todayStr,
-      isSelected: formatDate(d) === currentDateStr
-    });
+    days.push({ date: d, isCurrentMonth: false, isToday: formatDate(d) === todayStr, isSelected: formatDate(d) === currentDateStr });
   }
-
   for (let i = 1; i <= daysInMonth; i++) {
     const d = new Date(year, month, i);
-    days.push({
-      date: d,
-      isCurrentMonth: true,
-      isToday: formatDate(d) === todayStr,
-      isSelected: formatDate(d) === currentDateStr
-    });
+    days.push({ date: d, isCurrentMonth: true, isToday: formatDate(d) === todayStr, isSelected: formatDate(d) === currentDateStr });
   }
-
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
     const d = new Date(year, month + 1, i);
-    days.push({
-      date: d,
-      isCurrentMonth: false,
-      isToday: formatDate(d) === todayStr,
-      isSelected: formatDate(d) === currentDateStr
-    });
+    days.push({ date: d, isCurrentMonth: false, isToday: formatDate(d) === todayStr, isSelected: formatDate(d) === currentDateStr });
   }
-
   return days;
 };
 
-export const generateDCPName = (movieName: string, format: string, dateStr: string, is3D: boolean, isSubtitled: boolean) => {
-    // Generate a sanitized pseudo-DCP name if missing
-    const dateClean = dateStr.replace(/-/g, '');
-    const cleanName = movieName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 15);
-    const langString = isSubtitled ? 'EN-RU' : 'RU-XX';
-    return `${cleanName}_FTR_S_${langString}_51_2K_IOP_${dateClean}_SMPTE_${is3D ? '3D' : '2D'}_OV`;
+/**
+ * Normalizes movie title for comparison.
+ */
+export const normalizeMovieTitle = (title: string): string => {
+    if (!title) return '';
+    let normalized = title.toLowerCase();
+    const noise = ['предсеансовое обслуживание', 'предсеансовое обсл.', 'предсеансовое', 'предсеанс. обсл.', 'предсеанс', 'обслуживание'];
+    noise.forEach(n => {
+        if (normalized.includes(n)) normalized = normalized.split(n)[0];
+    });
+    normalized = normalized.replace(/\(.*\)/g, '').replace(/\[.*\]/g, '');
+    return normalized.replace(/[^a-zа-яё0-9]/gi, '').trim();
+};
+
+export const parseDurationToMinutes = (duration: string | number | undefined | null): number => {
+    if (!duration) return 0;
+    if (typeof duration === 'number') return duration;
+    
+    const parts = String(duration).split(':').map(Number);
+    if (parts.length === 3) {
+        // HH:MM:SS -> Minutes
+        return Math.floor(parts[0] * 60 + parts[1] + parts[2] / 60);
+    }
+    if (parts.length === 2) {
+        // MM:SS -> Minutes
+        return Math.floor(parts[0] + parts[1] / 60);
+    }
+    if (parts.length === 1) {
+        return Number(duration) || 0;
+    }
+    return 0;
+};
+
+export const parseDurationString = (durationStr: string | number): number => {
+    if (typeof durationStr === 'number') return durationStr;
+    if (!durationStr || typeof durationStr !== 'string') return 0;
+    const parts = durationStr.split(':').map(Number);
+    if (parts.some(isNaN)) return 0;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 1) return parts[0] * 60;
+    return 0;
 };

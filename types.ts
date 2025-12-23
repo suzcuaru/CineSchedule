@@ -10,12 +10,22 @@ export type ContentStatus =
   | 'missing';          // Красный: Не найден
 
 export type ViewMode = 
-  | { type: 'dashboard' } // NEW: Summary Home Page
-  | { type: 'schedule' }  // RENAMED: Old Dashboard (Grid)
+  | { type: 'dashboard' } 
+  | { type: 'schedule' }  
   | { type: 'hall_weekly', hallName: string, centerDate: string }
   | { type: 'settings' }
   | { type: 'info' }
   | { type: 'updates' };
+
+export interface Hall {
+  id: number;
+  name: string;
+  category_id?: number;
+  hall_category?: HallCategory; // Вложенный объект категории, если есть
+  // Новые поля для UI
+  clean_name?: string;     // Имя только из цифр (например "1" из "1 Большой")
+  category_name?: string;  // Название категории (например "VIP")
+}
 
 export interface MovieSession {
   id: string; 
@@ -24,6 +34,8 @@ export interface MovieSession {
   time: string; 
   end_time: string; 
   duration: number; 
+  ads_duration: number; // Общая длительность рекламного блока (включая вшитые)
+  embedded_trailers_duration: number; // Длительность только вшитых трейлеров
   age_limit: number;
   name: string;
   dcp_package_name: string;
@@ -41,6 +53,34 @@ export interface MovieSession {
   is_subtitled: boolean;
 }
 
+export interface HallCategory {
+  id: number;
+  name: string;
+  description: string;
+}
+
+export interface CinemaFormat {
+  id: number;
+  name: string; // 2D, 3D, IMAX etc
+}
+
+export interface Advertisement {
+  id: number; // Это будет show_id
+  total_duration: number; // Вычисленная сумма всех роликов
+  advertisements?: any[]; // Список самих роликов
+  title?: string;
+  type?: string;
+}
+
+export interface GoogleSheetData {
+  id: string;
+  key: string;
+  value: any;
+  last_updated: string;
+}
+
+export type RefreshInterval = 0 | 5 | 15 | 30 | 60 | 1440; // minutes, 1440 = 1 day
+
 export interface AppSettings {
   serverUrl: string;
   apiKey: string;
@@ -50,10 +90,8 @@ export interface AppSettings {
   cardDensity: 'compact' | 'default';
   theme: 'default' | 'sepia' | 'dusk';
   enableAnimations: boolean;
-  autoRefreshInterval: number; // in minutes, 0 = off
+  autoRefreshInterval: RefreshInterval;
 }
-
-// --- UI HELPERS ---
 
 export interface CalendarDay {
   date: Date;
@@ -62,23 +100,12 @@ export interface CalendarDay {
   isSelected: boolean;
 }
 
-// --- AI ANALYSIS ---
-
 export interface AnalysisResult {
   summary: string;
   technical_notes: string[];
   schedule_efficiency: string;
   alerts: string[];
 }
-
-// --- DB STATUS RECORD ---
-export interface StatusRecord {
-    id: string; 
-    session_id: string; 
-    status: ContentStatus;
-}
-
-// --- CONFIG & STATUS ---
 
 export const CONTENT_STATUS_CONFIG: Record<ContentStatus, { label: string, color: string, border: string, bg: string, glow: string }> = {
   ready_hall: { 

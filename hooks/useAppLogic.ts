@@ -1,7 +1,10 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDate, getWeeklyDates } from '../services/dataService';
 import { BackendService } from '../backend/aggregator'; 
-import { MovieSession, ContentStatus, ViewMode, AppSettings } from '../types';
+import { MovieSession, ViewMode, AppSettings, Hall } from '../types';
+
+export type RefreshStatus = 'idle' | 'loading' | 'success' | 'error';
 
 export const useAppLogic = () => {
   const [currentDate, setCurrentDate] = useState<string>(formatDate(new Date()));
@@ -11,7 +14,7 @@ export const useAppLogic = () => {
   const [appSettings, setAppSettings] = useState<AppSettings>({
       serverUrl: '',
       apiKey: '',
-      useMockDataFallback: true,
+      useMockDataFallback: false,
       highlightCurrent: true,
       fontSize: 'medium',
       cardDensity: 'default',
@@ -20,131 +23,113 @@ export const useAppLogic = () => {
       autoRefreshInterval: 0,
   });
 
-  const [dashboardSessions, setDashboardSessions] = useState<MovieSession[]>([]);
-  const [weeklyHallSessions, setWeeklyHallSessions] = useState<MovieSession[]>([]);
+  const [currentDashboardSessions, setCurrentDashboardSessions] = useState<MovieSession[]>([]);
+  const [currentWeeklyHallSessions, setCurrentWeeklyHallSessions] = useState<MovieSession[]>([]);
   
   const [isLoading, setIsLoading] = useState<boolean>(true); 
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false); 
+  const [refreshStatus, setRefreshStatus] = useState<RefreshStatus>('idle'); 
   const [refreshKey, setRefreshKey] = useState(Date.now());
+  const refreshTimerRef = useRef<any>(null);
 
-  const [hallCount] = useState<number>(8);
+  const [halls, setHalls] = useState<Hall[]>([]);
   const [selectedMovieName, setSelectedMovieName] = useState<string | null>(null);
-  const initialLoadDone = useRef(false);
 
-  // Subscribe to settings changes from the backend service (e.g., on initial load)
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    // Load halls alongside sessions
+    const hallsData = await BackendService.getHalls();
+    setHalls(hallsData);
+
+    if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
+        const sessions = await BackendService.getDailySchedule(currentDate);
+        setCurrentDashboardSessions(sessions);
+    } else if (viewMode.type === 'hall_weekly') {
+        const sessions = await BackendService.getWeeklyHallSchedule(viewMode.hallName, currentDate);
+        setCurrentWeeklyHallSessions(sessions);
+    }
+    setIsLoading(false);
+  }, [currentDate, viewMode]);
+
+  // Sync effect based on interval
+  useEffect(() => {
+    const interval = appSettings.autoRefreshInterval;
+    if (interval === 0) return;
+
+    const timer = setInterval(() => {
+      console.log("[AutoSync] Triggering scheduled update...");
+      BackendService.syncAllData(); // Глобальная синхронизация в фоне
+    }, interval * 60 * 1000);
+
+    return () => clearInterval(timer);
+  }, [appSettings.autoRefreshInterval]);
+
+  // Подписка на изменения в BackendService
   useEffect(() => {
     return BackendService.subscribe(() => {
-        const storedSettings = BackendService.config; // Access public config for sync
+        // Синхронизируем настройки
+        const storedSettings = BackendService.config;
         if (storedSettings) {
             setAppSettings(prev => ({ ...prev, ...storedSettings }));
         }
+        
+        const serviceStatus = BackendService.connectionStatus;
+        
+        // Переход в режим загрузки
+        if (serviceStatus === 'pending') {
+            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+            setRefreshStatus('loading');
+        }
+        
+        // Завершение загрузки (успех или ошибка)
+        if (serviceStatus === 'connected' || serviceStatus === 'error') {
+            // Сначала загружаем данные в UI, и только потом меняем статус кнопки
+            loadData().then(() => {
+                setRefreshKey(Date.now());
+                
+                setRefreshStatus(prev => {
+                    // Реагируем на завершение только если мы были в состоянии loading
+                    if (prev === 'loading') {
+                        const finalStatus = serviceStatus === 'connected' ? 'success' : 'error';
+                        
+                        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+                        // Возврат в idle через 10 секунд
+                        refreshTimerRef.current = setTimeout(() => {
+                            setRefreshStatus('idle');
+                        }, 10000);
+                        
+                        return finalStatus;
+                    }
+                    return prev;
+                });
+            });
+        }
     });
-  }, []);
+  }, [loadData]);
 
   const updateSetting = async (key: keyof AppSettings, value: any) => {
       const newSettings = { ...appSettings, [key]: value };
       setAppSettings(newSettings);
       await BackendService.configure(newSettings);
-      // Re-fetch data for current view after settings change (e.g. serverUrl)
-      if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-        loadDashboard(currentDate);
-      } else if (viewMode.type === 'hall_weekly') {
-        loadWeeklyData(viewMode.hallName, currentDate);
-      }
   };
 
-  const loadDashboard = useCallback(async (date: string) => {
-    const sessions = await BackendService.getDailySchedule(date);
-    setDashboardSessions(sessions);
-    if (!initialLoadDone.current) {
-      setIsLoading(false);
-      initialLoadDone.current = true;
-    }
-  }, []);
-
-  const loadWeeklyData = useCallback(async (hallName: string, centerDate: string) => {
-    const sessions = await BackendService.getWeeklyHallSchedule(hallName, centerDate);
-    setWeeklyHallSessions(sessions);
-     if (!initialLoadDone.current) {
-      setIsLoading(false);
-      initialLoadDone.current = true;
-    }
-  }, []);
-
-  // Effect to load data based on viewMode and date changes
   useEffect(() => {
-    if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-        loadDashboard(currentDate);
-    } else if (viewMode.type === 'hall_weekly') {
-        loadWeeklyData(viewMode.hallName, viewMode.centerDate);
-    }
-  }, [currentDate, viewMode, loadDashboard, loadWeeklyData]);
-  
-  // Subscribe to live data updates from the backend
-  useEffect(() => {
-      return BackendService.subscribe(() => {
-         if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-             loadDashboard(currentDate);
-         } else if (viewMode.type === 'hall_weekly') {
-             loadWeeklyData(viewMode.hallName, viewMode.centerDate);
-         }
-         // No refreshKey update here to prevent animation on background updates
-      });
-  }, [viewMode, currentDate, loadDashboard, loadWeeklyData]);
+    loadData();
+  }, [loadData]);
 
-  // Effect for auto-refresh polling
-  useEffect(() => {
-    if (appSettings.autoRefreshInterval > 0) {
-        const intervalInMs = appSettings.autoRefreshInterval * 60 * 1000;
-        
-        const backgroundRefresh = async () => {
-            // This is a background task, so no visual loading indicators
-            if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-                await loadDashboard(currentDate);
-            } else if (viewMode.type === 'hall_weekly') {
-                await loadWeeklyData(viewMode.hallName, viewMode.centerDate);
-            }
-        };
-
-        const intervalId = setInterval(backgroundRefresh, intervalInMs);
-        return () => clearInterval(intervalId);
-    }
-  }, [appSettings.autoRefreshInterval, currentDate, viewMode, loadDashboard, loadWeeklyData]);
+  const handleRefresh = async () => {
+    // Обновляем только Shows и Tickets по запросу пользователя
+    await BackendService.syncScheduleOnly();
+  };
 
   const handleHallClick = (hallName: string) => {
     setViewMode({ type: 'hall_weekly', hallName, centerDate: currentDate });
   };
 
   const handleNavigate = (mode: ViewMode) => {
-      setViewMode(mode);
-      setIsLogoMenuOpen(false);
+    setViewMode(mode);
+    setIsLogoMenuOpen(false);
   };
 
-  const handleRefresh = useCallback(async () => {
-      setIsRefreshing(true);
-      
-      const dataFetchPromise = (async () => {
-        if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-            await loadDashboard(currentDate);
-        } else if (viewMode.type === 'hall_weekly') {
-            await loadWeeklyData(viewMode.hallName, viewMode.centerDate);
-        }
-      })();
-
-      // Ensure the loading animation is visible for a minimum duration for better user experience.
-      const minDurationPromise = new Promise(resolve => setTimeout(resolve, 800));
-
-      await Promise.all([dataFetchPromise, minDurationPromise]);
-      
-      setIsRefreshing(false);
-      // setRefreshKey(Date.now()); // Removed to prevent re-animation on refresh
-  }, [viewMode, currentDate, loadDashboard, loadWeeklyData]);
-
-  const handleStatusChange = async (session: MovieSession, newStatus: ContentStatus) => {
-      await BackendService.setSessionStatus(session, newStatus);
-      // The subscription will trigger a data reload automatically
-  };
-  
   const handleSelectMovie = (name: string) => {
       setSelectedMovieName(prev => prev === name ? null : name);
   };
@@ -153,22 +138,21 @@ export const useAppLogic = () => {
     currentDate,
     setCurrentDate,
     viewMode,
+    isLoading,
+    refreshStatus,
+    currentDashboardSessions,
+    currentWeeklyHallSessions,
+    appSettings,
+    halls,
+    refreshKey,
+    selectedMovieName,
     isLogoMenuOpen,
     setIsLogoMenuOpen,
-    appSettings,
-    updateSetting,
-    isLoading, 
-    isRefreshing, 
-    hallCount,
-    handleNavigate,
     handleRefresh,
     handleHallClick,
-    handleStatusChange,
-    selectedMovieName,
+    handleNavigate,
     handleSelectMovie,
-    currentDashboardSessions: dashboardSessions,
-    currentWeeklyHallSessions: weeklyHallSessions, // NEW
-    getWeeklyDates,
-    refreshKey,
+    updateSetting,
+    getWeeklyDates
   };
 };

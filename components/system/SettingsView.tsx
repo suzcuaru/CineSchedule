@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Settings, Globe, Eye, EyeOff, Zap, CheckCircle, XCircle, AlertTriangle, Type, Brush, Rows, KeyRound, RefreshCw } from 'lucide-react';
-import { AppSettings } from '../../types';
+import { AppSettings, RefreshInterval } from '../../types';
 import { BackendService } from '../../backend/aggregator';
 import { ViewContainer, GridSection, Card, InputGroup, ToggleCard, SegmentedControl } from './SystemUI';
 
@@ -12,11 +12,15 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }) => {
   const [status, setStatus] = useState(BackendService.connectionStatus);
+  const [version, setVersion] = useState(BackendService.serverVersion);
+  const [error, setError] = useState(BackendService.lastErrorMessage);
   const [isKeyVisible, setIsKeyVisible] = useState(false);
 
   useEffect(() => {
       return BackendService.subscribe(() => {
           setStatus(BackendService.connectionStatus);
+          setVersion(BackendService.serverVersion);
+          setError(BackendService.lastErrorMessage);
       });
   }, []);
 
@@ -31,17 +35,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
     if (status === 'connected') return (
         <div className="flex items-center gap-2 text-emerald-400 bg-emerald-400/10 px-3 py-1 rounded-lg border border-emerald-400/20">
             <CheckCircle size={16} />
-            <span className="text-sm font-bold">ONLINE</span>
+            <span className="text-sm font-bold uppercase tracking-tight">ONLINE {version ? `v${version}` : ''}</span>
+        </div>
+    );
+
+    if (status === 'pending') return (
+        <div className="flex items-center gap-2 text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-lg border border-indigo-400/20">
+            <RefreshCw size={16} className="animate-spin" />
+            <span className="text-sm font-bold">CHECKING...</span>
         </div>
     );
 
     return (
-        <div className="flex items-center gap-2 text-red-400 bg-red-400/10 px-3 py-1 rounded-lg border border-red-400/20">
-            <XCircle size={16} />
-            <span className="text-sm font-bold">OFFLINE</span>
+        <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2 text-red-400 bg-red-400/10 px-3 py-1 rounded-lg border border-red-400/20">
+                <XCircle size={16} />
+                <span className="text-sm font-bold uppercase">OFFLINE</span>
+            </div>
+            {error && <span className="text-[10px] text-red-500 font-mono text-right max-w-[200px] leading-tight">{error}</span>}
         </div>
     );
   };
+
+  const refreshOptions: { label: string, value: RefreshInterval }[] = [
+    { label: 'Выкл', value: 0 },
+    { label: '5м', value: 5 },
+    { label: '15м', value: 15 },
+    { label: '30м', value: 30 },
+    { label: '60м', value: 60 },
+    { label: '1 день', value: 1440 }
+  ];
 
   return (
       <ViewContainer title="Настройки Приложения" icon={Settings}>
@@ -57,7 +80,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
                       <p className="text-slate-400 text-sm">
                           Укажите IP-адрес и ключ API для подключения к серверу. Если поля пустые, приложение будет работать в режиме демонстрации.
                           <br />
-                          <strong className="text-slate-300">Данные хранятся локально в вашем браузере.</strong>
+                          <strong className="text-slate-300">Данные хранятся локально в IndexedDB вашего браузера.</strong>
                       </p>
 
                       <div className="grid md:grid-cols-2 gap-6 max-w-4xl">
@@ -175,25 +198,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onUpdate }
                             <div>
                                 <h3 className="text-lg font-bold text-slate-200">Авто-обновление</h3>
                                 <p className="text-sm text-slate-500 leading-relaxed">
-                                    Фоновая синхронизация данных.
+                                    Фоновая синхронизация всех данных (Фильмы, Залы, Сеансы).
                                 </p>
                             </div>
                         </div>
                     </div>
                     <div className="mt-4">
                         <div className="flex items-center bg-slate-950/70 border border-slate-800 rounded-lg p-1 w-full">
-                            {[
-                                { label: 'Выкл', value: '0' },
-                                { label: '5 мин', value: '5' },
-                                { label: '10 мин', value: '10' },
-                                { label: '15 мин', value: '15' }
-                            ].map(opt => (
+                            {refreshOptions.map(opt => (
                                 <button
                                   key={opt.value}
-                                  onClick={() => onUpdate('autoRefreshInterval', Number(opt.value))}
+                                  onClick={() => onUpdate('autoRefreshInterval', opt.value)}
                                   className={`
-                                    flex-1 px-2 py-2 text-sm font-bold rounded-md transition-all duration-200 text-center
-                                    ${String(settings.autoRefreshInterval) === opt.value 
+                                    flex-1 px-1 py-2 text-[11px] font-bold rounded-md transition-all duration-200 text-center
+                                    ${settings.autoRefreshInterval === opt.value 
                                         ? 'bg-indigo-600 text-white shadow' 
                                         : 'text-slate-400 hover:bg-slate-700/50'}
                                   `}

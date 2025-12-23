@@ -1,5 +1,6 @@
+
 import React, { useMemo, memo, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import { MovieSession, AppSettings } from '../types';
+import { MovieSession, AppSettings, Hall } from '../types';
 import { MovieCard, SkeletonMovieCard } from './MovieCard';
 import { ArrowRight, MonitorPlay, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ScrollIndicator } from './ScrollIndicator';
@@ -7,7 +8,7 @@ import { VerticalScrollPanel } from './VerticalScrollPanel';
 
 interface ScheduleGridProps {
   sessions: MovieSession[];
-  hallCount: number;
+  halls: Hall[];
   onHallClick: (hallName: string) => void;
   settings: AppSettings;
   isLoading: boolean;
@@ -18,7 +19,7 @@ interface ScheduleGridProps {
 }
 
 interface HallColumnProps {
-    hallId: string;
+    hall: Hall;
     sessions: MovieSession[];
     onHallClick: (hallName: string) => void;
     settings: AppSettings;
@@ -49,22 +50,26 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: HallColumnProps) => {
+const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: HallColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const colStatus = useMemo(() => getColumnStatus(sessions), [sessions]);
 
+    // Use cleaned name if available, otherwise original name
+    const displayName = hall.clean_name || hall.name;
+    const categoryName = hall.category_name || '';
+
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
-                onVisibilityChange(hallId, entry.isIntersecting);
+                onVisibilityChange(hall.name, entry.isIntersecting);
             },
             { threshold: 0.6 } // 60% visibility required to be "Active"
         );
 
         if (columnRef.current) observer.observe(columnRef.current);
         return () => observer.disconnect();
-    }, [hallId, onVisibilityChange]);
+    }, [hall.name, onVisibilityChange]);
 
     // Header Styles based on Status
     let headerStyle = "bg-gradient-to-b from-slate-800/40 to-slate-900/40 border-white/5 group-hover/hall:bg-slate-800/60";
@@ -95,23 +100,24 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
             
             {/* Hall Header */}
             <div 
-                onClick={() => onHallClick(hallId)}
+                onClick={() => onHallClick(hall.name)}
                 className={`
                     flex-none relative z-20 p-4 mb-2 mx-2 rounded-xl cursor-pointer overflow-hidden border
                     transition-all duration-300 backdrop-blur-md
                     ${headerStyle}
                 `}
             >
-                {/* Background Number */}
-                <span className={`absolute -right-2 -top-4 text-7xl font-black pointer-events-none select-none transition-colors ${colStatus === 'default' ? 'text-white/5 group-hover/hall:text-indigo-500/10' : 'text-white/5'}`}>
-                    {hallId}
+                {/* Background Text (Number + Category) */}
+                <span className={`absolute -right-2 -top-4 text-7xl font-black pointer-events-none select-none whitespace-nowrap transition-colors ${colStatus === 'default' ? 'text-white/5 group-hover/hall:text-indigo-500/10' : 'text-white/5'}`}>
+                    {displayName} {categoryName}
                 </span>
 
                 <div className="flex justify-between items-end relative z-10">
                     <div className="flex flex-col">
                          <span className={`hall-header-subtitle text-xs font-bold uppercase tracking-widest mb-0.5 ${colStatus === 'default' ? 'text-slate-500' : 'text-white/60'}`}>Кинозал</span>
-                         <h2 className={`text-2xl font-black transition-colors ${textStyle}`}>
-                            No. {hallId}
+                         <h2 className={`text-2xl font-black transition-colors flex items-center gap-2 ${textStyle}`}>
+                            <span>{displayName}</span>
+                            {categoryName && <span>{categoryName}</span>}
                          </h2>
                     </div>
                     
@@ -136,7 +142,7 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
 
                     {isLoading ? (
                         Array.from({ length: 8 }).map((_, i) => (
-                            <SkeletonMovieCard key={`skeleton-${hallId}-${i}`} />
+                            <SkeletonMovieCard key={`skeleton-${hall.id}-${i}`} />
                         ))
                     ) : (
                         sessions && sessions.length > 0 ? (
@@ -170,21 +176,25 @@ const HallColumn = memo(({ hallId, sessions, onHallClick, settings, isLoading, w
     );
 });
 
-export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, refreshKey }) => {
+export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, refreshKey }) => {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [visibleHalls, setVisibleHalls] = useState<Set<string>>(new Set(['1']));
+  const [visibleHalls, setVisibleHalls] = useState<Set<string>>(new Set());
   const [scrollRatio, setScrollRatio] = useState(0);
   const [isScrollable, setIsScrollable] = useState(false);
 
+  const hallNames = useMemo(() => halls.map(h => h.name), [halls]);
+
   const sessionsByHall = useMemo(() => {
     const grouped: Record<string, MovieSession[]> = {};
-    for (let i = 1; i <= hallCount; i++) {
-        grouped[i.toString()] = [];
-    }
+    // Initialize for all halls present in DB
+    halls.forEach(h => {
+        grouped[h.name] = [];
+    });
     
     if (sessions) {
         sessions.forEach(session => {
+          // If session belongs to a hall not in our list (e.g. deleted), add it dynamically or skip
           if (!grouped[session.hall_name]) {
             grouped[session.hall_name] = [];
           }
@@ -197,9 +207,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount,
     });
 
     return grouped;
-  }, [sessions, hallCount]);
-
-  const halls = useMemo(() => Array.from({ length: hallCount }, (_, i) => (i + 1).toString()), [hallCount]);
+  }, [sessions, halls]);
 
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
@@ -220,7 +228,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount,
     debouncedCheck();
 
     return () => observer.disconnect();
-  }, [isLoading]);
+  }, [isLoading, halls]);
 
   const handleVisibilityChange = (id: string, isVisible: boolean) => {
       setVisibleHalls(prev => {
@@ -287,32 +295,43 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, hallCount,
             className="w-full h-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory touch-pan-x hide-scrollbar"
         >
             <div className="flex h-full w-full">
-                {halls.map((hallId) => (
-                <HallColumn 
-                    key={hallId}
-                    hallId={hallId}
-                    sessions={sessionsByHall[hallId]}
-                    onHallClick={onHallClick}
-                    settings={settings}
-                    isLoading={isLoading}
-                    widthClass={columnWidthClass}
-                    onVisibilityChange={handleVisibilityChange}
-                    selectedMovieName={selectedMovieName}
-                    onSelectMovie={onSelectMovie}
-                    refreshKey={refreshKey}
-                />
-                ))}
+                {halls.length > 0 ? (
+                    halls.map((hall) => (
+                    <HallColumn 
+                        key={hall.id}
+                        hall={hall}
+                        sessions={sessionsByHall[hall.name]}
+                        onHallClick={onHallClick}
+                        settings={settings}
+                        isLoading={isLoading}
+                        widthClass={columnWidthClass}
+                        onVisibilityChange={handleVisibilityChange}
+                        selectedMovieName={selectedMovieName}
+                        onSelectMovie={onSelectMovie}
+                        refreshKey={refreshKey}
+                    />
+                    ))
+                ) : (
+                    // Fallback if no halls found in DB, just to show something or empty state
+                     <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
+                        <MonitorPlay size={64} className="mb-4 opacity-50"/>
+                        <p className="text-xl font-bold">Залы не найдены</p>
+                        <p className="text-sm">Синхронизируйте базу данных</p>
+                    </div>
+                )}
             </div>
         </div>
         
-        <ScrollIndicator 
-            items={halls}
-            visibleItems={visibleHalls}
-            scrollRatio={scrollRatio}
-            onScrub={handleScrub}
-            onStep={handleStep}
-            isScrollable={isScrollable}
-        />
+        {halls.length > 0 && (
+            <ScrollIndicator 
+                items={hallNames}
+                visibleItems={visibleHalls}
+                scrollRatio={scrollRatio}
+                onScrub={handleScrub}
+                onStep={handleStep}
+                isScrollable={isScrollable}
+            />
+        )}
     </div>
   );
 };

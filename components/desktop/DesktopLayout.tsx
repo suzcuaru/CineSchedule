@@ -1,3 +1,4 @@
+
 import React, { Suspense } from 'react';
 import { Navbar } from '../Navbar';
 import { useAppLogic } from '../../hooks/useAppLogic';
@@ -15,7 +16,7 @@ const CodeLoadFallback = () => <div className="w-full h-full bg-[#0b0f19]" />;
 export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) => {
   const { 
       viewMode, appSettings, isLoading, currentDashboardSessions, 
-      hallCount, handleHallClick, currentWeeklyHallSessions, 
+      halls, handleHallClick, currentWeeklyHallSessions, 
       getWeeklyDates, currentDate, updateSetting, handleNavigate,
       selectedMovieName, handleSelectMovie, refreshKey
   } = props;
@@ -36,7 +37,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
               return (
                 <ScheduleGrid 
                     sessions={currentDashboardSessions} 
-                    hallCount={hallCount} 
+                    halls={halls} 
                     onHallClick={handleHallClick}
                     settings={appSettings}
                     isLoading={isLoading}
