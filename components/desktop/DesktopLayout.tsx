@@ -18,10 +18,10 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
       viewMode, appSettings, isLoading, currentDashboardSessions, 
       halls, handleHallClick, currentWeeklyHallSessions, 
       getWeeklyDates, currentDate, updateSetting, handleNavigate,
-      selectedMovieName, handleSelectMovie, refreshKey
+      selectedMovieName, handleSelectMovie, handleStatusChange, refreshKey
   } = props;
 
-  const responsiveColumnClass = "w-full md:w-1/2 lg:w-1/3 2xl:w-1/4";
+  const responsiveColumnClass = "w-full md:w-1/2 lg:w-1/3 2xl:w-1/4 min-w-[325px]";
 
   const renderContent = () => {
       switch (viewMode.type) {
@@ -29,7 +29,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
               return (
                   <DashboardView 
                     sessions={currentDashboardSessions}
-                    onNavigateToSchedule={() => handleNavigate({ type: 'schedule' })}
+                    onNavigate={handleNavigate}
                     date={currentDate}
                   />
               );
@@ -44,6 +44,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     columnWidthClass={responsiveColumnClass}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );
@@ -58,6 +59,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     columnWidthClass={responsiveColumnClass}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );

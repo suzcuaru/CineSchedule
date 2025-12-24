@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDate, getWeeklyDates } from '../services/dataService';
 import { BackendService } from '../backend/aggregator'; 
-import { MovieSession, ViewMode, AppSettings, Hall } from '../types';
+import { MovieSession, ViewMode, AppSettings, Hall, ContentStatus } from '../types';
 
 export type RefreshStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -30,13 +30,13 @@ export const useAppLogic = () => {
   const [refreshStatus, setRefreshStatus] = useState<RefreshStatus>('idle'); 
   const [refreshKey, setRefreshKey] = useState(Date.now());
   const refreshTimerRef = useRef<any>(null);
+  const settingsDebounceRef = useRef<any>(null);
 
   const [halls, setHalls] = useState<Hall[]>([]);
   const [selectedMovieName, setSelectedMovieName] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    // Load halls alongside sessions
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     const hallsData = await BackendService.getHalls();
     setHalls(hallsData);
 
@@ -47,69 +47,44 @@ export const useAppLogic = () => {
         const sessions = await BackendService.getWeeklyHallSchedule(viewMode.hallName, currentDate);
         setCurrentWeeklyHallSessions(sessions);
     }
-    setIsLoading(false);
+    if (!silent) setIsLoading(false);
   }, [currentDate, viewMode]);
 
-  // Sync effect based on interval
   useEffect(() => {
     const interval = appSettings.autoRefreshInterval;
     if (interval === 0) return;
 
     const timer = setInterval(() => {
-      console.log("[AutoSync] Triggering scheduled update...");
-      BackendService.syncAllData(); // Глобальная синхронизация в фоне
+      BackendService.syncAllData(true); 
     }, interval * 60 * 1000);
 
     return () => clearInterval(timer);
   }, [appSettings.autoRefreshInterval]);
 
-  // Подписка на изменения в BackendService
   useEffect(() => {
     return BackendService.subscribe(() => {
-        // Синхронизируем настройки
         const storedSettings = BackendService.config;
         if (storedSettings) {
             setAppSettings(prev => ({ ...prev, ...storedSettings }));
         }
         
         const serviceStatus = BackendService.connectionStatus;
-        
-        // Переход в режим загрузки
-        if (serviceStatus === 'pending') {
-            if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-            setRefreshStatus('loading');
-        }
-        
-        // Завершение загрузки (успех или ошибка)
-        if (serviceStatus === 'connected' || serviceStatus === 'error') {
-            // Сначала загружаем данные в UI, и только потом меняем статус кнопки
-            loadData().then(() => {
-                setRefreshKey(Date.now());
-                
-                setRefreshStatus(prev => {
-                    // Реагируем на завершение только если мы были в состоянии loading
-                    if (prev === 'loading') {
-                        const finalStatus = serviceStatus === 'connected' ? 'success' : 'error';
-                        
-                        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-                        // Возврат в idle через 10 секунд
-                        refreshTimerRef.current = setTimeout(() => {
-                            setRefreshStatus('idle');
-                        }, 10000);
-                        
-                        return finalStatus;
-                    }
-                    return prev;
-                });
-            });
+        if (refreshStatus === 'idle' && (serviceStatus === 'connected' || serviceStatus === 'error')) {
+            loadData(true);
         }
     });
-  }, [loadData]);
+  }, [loadData, refreshStatus]);
 
   const updateSetting = async (key: keyof AppSettings, value: any) => {
-      const newSettings = { ...appSettings, [key]: value };
-      setAppSettings(newSettings);
-      await BackendService.configure(newSettings);
+      setAppSettings(prev => ({ ...prev, [key]: value }));
+      if (key === 'serverUrl') {
+          if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current);
+          settingsDebounceRef.current = setTimeout(() => {
+              BackendService.saveSetting(key, value);
+          }, 500);
+      } else {
+          await BackendService.saveSetting(key, value);
+      }
   };
 
   useEffect(() => {
@@ -117,8 +92,31 @@ export const useAppLogic = () => {
   }, [loadData]);
 
   const handleRefresh = async () => {
-    // Обновляем только Shows и Tickets по запросу пользователя
-    await BackendService.syncScheduleOnly();
+    if (refreshStatus === 'loading') return;
+    
+    const startTime = Date.now();
+    setRefreshStatus('loading');
+    
+    try {
+        await BackendService.syncScheduleOnly(true);
+        await loadData(true);
+        
+        const elapsedTime = Date.now() - startTime;
+        const minWait = 1200; // Немного увеличили для "солидности"
+        if (elapsedTime < minWait) {
+            await new Promise(resolve => setTimeout(resolve, minWait - elapsedTime));
+        }
+
+        setRefreshKey(Date.now());
+        setRefreshStatus('success');
+    } catch (e) {
+        setRefreshStatus('error');
+    } finally {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = setTimeout(() => {
+            setRefreshStatus('idle');
+        }, 2000);
+    }
   };
 
   const handleHallClick = (hallName: string) => {
@@ -132,6 +130,35 @@ export const useAppLogic = () => {
 
   const handleSelectMovie = (name: string) => {
       setSelectedMovieName(prev => prev === name ? null : name);
+  };
+
+  const handleStatusChange = async (sessionId: string, newStatus: ContentStatus) => {
+    let sessionToUpdate: MovieSession | undefined;
+
+    setCurrentDashboardSessions(prev => {
+        return prev.map(s => {
+            if (s.id === sessionId) {
+                sessionToUpdate = s;
+                return { ...s, content_status: newStatus };
+            }
+            return s;
+        });
+    });
+
+    setCurrentWeeklyHallSessions(prev => {
+        return prev.map(s => {
+             if (s.id === sessionId) {
+                 sessionToUpdate = s;
+                 return { ...s, content_status: newStatus };
+             }
+             return s;
+        });
+    });
+
+    if (sessionToUpdate) {
+        await BackendService.setSessionStatus(sessionToUpdate, newStatus);
+        await BackendService.syncStatusesOnly(true);
+    }
   };
 
   return {
@@ -152,6 +179,7 @@ export const useAppLogic = () => {
     handleHallClick,
     handleNavigate,
     handleSelectMovie,
+    handleStatusChange, 
     updateSetting,
     getWeeklyDates
   };

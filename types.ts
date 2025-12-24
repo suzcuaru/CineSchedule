@@ -9,6 +9,9 @@ export type ContentStatus =
   | 'no_status'         // Серый: Статус не определен
   | 'missing';          // Красный: Не найден
 
+export const HALL_SPECIFIC_STATUSES: ContentStatus[] = ['ready_hall', 'download_hall', 'no_keys'];
+export const GLOBAL_STATUSES: ContentStatus[] = ['on_storage', 'download_storage', 'distributor', 'no_status', 'missing'];
+
 export type ViewMode = 
   | { type: 'dashboard' } 
   | { type: 'schedule' }  
@@ -36,6 +39,7 @@ export interface MovieSession {
   duration: number; 
   ads_duration: number; // Общая длительность рекламного блока (включая вшитые)
   embedded_trailers_duration: number; // Длительность только вшитых трейлеров
+  commercial_ads: { name: string, duration: number }[]; // Список коммерческих роликов
   age_limit: number;
   name: string;
   dcp_package_name: string;
@@ -45,6 +49,7 @@ export interface MovieSession {
   vertical_poster: string;
   time_status: 'active' | 'inactive' | 'cancelled' | 'finished' | 'running';
   content_status: ContentStatus;
+  status_updated_at?: number; // Timestamp of last status change
   distributor: string;
   credits_offset_from_end: number; 
   credits_display_from_start: string; 
@@ -98,6 +103,22 @@ export interface CalendarDay {
   isCurrentMonth: boolean;
   isToday: boolean;
   isSelected: boolean;
+}
+
+// Remote DB Interfaces
+export interface RemoteTableColumn {
+  name: string;
+  type: string;
+  not_null?: boolean;
+  primary_key?: boolean;
+}
+
+// Updated to match the new wide-table structure
+export interface RemoteStatusRecord {
+  movies_name: string;
+  status_global?: string;
+  updated_at: number;
+  [key: string]: any; // Allow dynamic status_halls_X keys
 }
 
 export interface AnalysisResult {

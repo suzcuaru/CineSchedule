@@ -1,6 +1,6 @@
 
 import React, { useMemo, memo, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import { MovieSession, AppSettings, Hall } from '../types';
+import { MovieSession, AppSettings, Hall, ContentStatus } from '../types';
 import { MovieCard, SkeletonMovieCard } from './MovieCard';
 import { ArrowRight, MonitorPlay, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { ScrollIndicator } from './ScrollIndicator';
@@ -15,6 +15,7 @@ interface ScheduleGridProps {
   columnWidthClass?: string; 
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
+  onStatusChange?: (id: string, status: ContentStatus) => void;
   refreshKey: number;
 }
 
@@ -28,6 +29,7 @@ interface HallColumnProps {
     onVisibilityChange: (id: string, isVisible: boolean) => void;
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
+    onStatusChange?: (id: string, status: ContentStatus) => void;
     refreshKey: number;
 }
 
@@ -50,7 +52,7 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: HallColumnProps) => {
+const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, refreshKey }: HallColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const colStatus = useMemo(() => getColumnStatus(sessions), [sessions]);
@@ -148,12 +150,13 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                         sessions && sessions.length > 0 ? (
                             sessions.map((session, idx) => (
                                 <MovieCard 
-                                    key={`${session.id}-${refreshKey}`} 
+                                    key={session.id} 
                                     session={session} 
                                     settings={settings}
                                     index={idx}
                                     selectedMovieName={selectedMovieName}
                                     onSelectMovie={onSelectMovie}
+                                    onStatusChange={onStatusChange}
                                 />
                             ))
                         ) : (
@@ -176,7 +179,7 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
     );
 });
 
-export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, refreshKey }) => {
+export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, onStatusChange, refreshKey }) => {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [visibleHalls, setVisibleHalls] = useState<Set<string>>(new Set());
@@ -308,6 +311,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
                         onVisibilityChange={handleVisibilityChange}
                         selectedMovieName={selectedMovieName}
                         onSelectMovie={onSelectMovie}
+                        onStatusChange={onStatusChange}
                         refreshKey={refreshKey}
                     />
                     ))

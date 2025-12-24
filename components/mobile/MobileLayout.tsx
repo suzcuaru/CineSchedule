@@ -18,7 +18,7 @@ export const MobileLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
       viewMode, appSettings, isLoading, currentDashboardSessions, 
       halls, handleHallClick, currentWeeklyHallSessions, 
       getWeeklyDates, currentDate, updateSetting, handleNavigate,
-      selectedMovieName, handleSelectMovie, refreshKey
+      selectedMovieName, handleSelectMovie, handleStatusChange, refreshKey
   } = props;
 
   const renderContent = () => {
@@ -27,7 +27,7 @@ export const MobileLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
               return (
                   <DashboardView 
                     sessions={currentDashboardSessions}
-                    onNavigateToSchedule={() => handleNavigate({ type: 'schedule' })}
+                    onNavigate={handleNavigate}
                     date={currentDate}
                   />
               );
@@ -42,6 +42,7 @@ export const MobileLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     columnWidthClass="w-[100vw]" 
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );
@@ -56,6 +57,7 @@ export const MobileLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     columnWidthClass="w-[100vw]"
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );

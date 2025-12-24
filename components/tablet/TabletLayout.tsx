@@ -18,7 +18,7 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
       viewMode, appSettings, isLoading, currentDashboardSessions, 
       halls, handleHallClick, currentWeeklyHallSessions, 
       getWeeklyDates, currentDate, updateSetting, handleNavigate,
-      selectedMovieName, handleSelectMovie, refreshKey
+      selectedMovieName, handleSelectMovie, handleStatusChange, refreshKey
   } = props;
 
   const renderContent = () => {
@@ -27,7 +27,7 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
              return (
                   <DashboardView 
                     sessions={currentDashboardSessions}
-                    onNavigateToSchedule={() => handleNavigate({ type: 'schedule' })}
+                    onNavigate={handleNavigate}
                     date={currentDate}
                   />
               );
@@ -39,9 +39,10 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     onHallClick={handleHallClick}
                     settings={appSettings}
                     isLoading={isLoading}
-                    columnWidthClass="w-[46vw]" 
+                    columnWidthClass="w-[46vw] min-w-[325px]" 
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );
@@ -53,9 +54,10 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     sessions={currentWeeklyHallSessions}
                     settings={appSettings}
                     loading={isLoading}
-                    columnWidthClass="w-[46vw]"
+                    columnWidthClass="w-[46vw] min-w-[325px]"
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
+                    onStatusChange={handleStatusChange}
                     refreshKey={refreshKey}
                 />
               );

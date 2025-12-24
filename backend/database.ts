@@ -35,6 +35,8 @@ export interface DbShow {
   start_time: string;
   end_time: string;
   format_id: number;
+  content_status?: string; // Persist status locally
+  status_updated_at?: number; // Timestamp for sync
 }
 
 export interface DbTicket {
@@ -81,6 +83,13 @@ class IndexedDBService {
     const tx = db.transaction(storeName as any, 'readwrite');
     const store = tx.objectStore(storeName as any) as any;
     
+    // NOTE: We do NOT clear 'shows' completely if we want to preserve local statuses 
+    // that might not be synced yet, BUT for this architecture, we assume 'syncAllData'
+    // merges remote statuses before saving. 
+    // However, clear() destroys local-only state. 
+    // For 'shows', we should probably iterate and merge if we were doing partial updates, 
+    // but aggregator.ts handles merging status into the fresh data before calling this.
+    
     await store.clear();
     
     // Using sequential put to ensure stability within transaction.
@@ -92,6 +101,19 @@ class IndexedDBService {
     }
     
     await tx.done;
+  }
+  
+  public async updateShowStatus(id: number, status: string, updatedAt: number) {
+      const db = await this.dbPromise;
+      const tx = db.transaction('shows', 'readwrite');
+      const store = tx.objectStore('shows');
+      const show = await store.get(id);
+      if (show) {
+          show.content_status = status;
+          show.status_updated_at = updatedAt;
+          await store.put(show);
+      }
+      await tx.done;
   }
 
   public async saveSyncMeta(type: string) {

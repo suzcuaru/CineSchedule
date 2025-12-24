@@ -2,8 +2,7 @@
 import React, { useState, useRef, memo, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { MovieSession, CONTENT_STATUS_CONFIG, AppSettings, ContentStatus } from '../types';
-import { Play, Hourglass, Clock, ChevronDown, ChevronUp, Check, Monitor, RefreshCw, Megaphone } from 'lucide-react';
-import { BackendService } from '../backend/aggregator';
+import { Play, Hourglass, Clock, ChevronDown, ChevronUp, Check, Monitor, RefreshCw, Megaphone, Ticket } from 'lucide-react';
 import { minutesToShortTime } from '../services/dataService';
 
 const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -14,6 +13,7 @@ interface MovieCardProps {
   index?: number;
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
+  onStatusChange?: (id: string, status: ContentStatus) => void; // New Prop
 }
 
 const StatusSelect = ({ 
@@ -159,7 +159,7 @@ const StatusSelect = ({
 };
 
 export const SkeletonMovieCard = () => (
-    <div className="w-full h-[168px] rounded-xl bg-[#1e293b] border border-slate-700/50 p-3 flex items-center justify-center select-none">
+    <div className="w-full h-[168px] min-w-[300px] rounded-xl bg-[#1e293b] border border-slate-700/50 p-3 flex items-center justify-center select-none">
        <RefreshCw size={32} className="text-slate-600 animate-spin" />
     </div>
 );
@@ -179,7 +179,7 @@ const PortalTooltip = ({ text, visible, position, large = false, title }: { text
     );
 };
 
-const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index = 0, selectedMovieName, onSelectMovie }) => {
+const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index = 0, selectedMovieName, onSelectMovie, onStatusChange }) => {
   const statusConfig = CONTENT_STATUS_CONFIG[session.content_status];
   const isFinished = session.time_status === 'finished';
   const isLive = useMemo(() => {
@@ -196,6 +196,7 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [tooltipState, setTooltipState] = useState<{ visible: boolean; text: React.ReactNode; large: boolean; title?: string; x: number; y: number }>({ visible: false, text: '', large: false, x: 0, y: 0 });
   const [isStatusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [showAdsDetails, setShowAdsDetails] = useState(false);
   const statusTriggerRef = useRef<HTMLButtonElement>(null);
   const hoverTimeoutRef = useRef<any>(null);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
@@ -234,9 +235,20 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
     setTimeout(() => setCopiedField(null), 1000);
   };
 
-  const handleDesktopClick = (e: React.MouseEvent, text: string, fieldName: string) => { e.stopPropagation(); performCopy(text, fieldName); };
+  const handleRightClickCopy = (e: React.MouseEvent, text: string, fieldName: string) => { 
+      e.preventDefault();
+      e.stopPropagation(); 
+      performCopy(text, fieldName); 
+  };
+  
   const handleStatusClick = (e: React.MouseEvent) => { e.stopPropagation(); setStatusMenuOpen(!isStatusMenuOpen); };
-  const handleStatusSelect = (status: ContentStatus) => { BackendService.setSessionStatus(session, status); setStatusMenuOpen(false); };
+  
+  const handleStatusSelect = (status: ContentStatus) => { 
+      if (onStatusChange) {
+          onStatusChange(session.id, status); 
+      }
+      setStatusMenuOpen(false); 
+  };
 
   const durationStr = useMemo(() => {
     if (!session.duration || session.duration <= 0) return null;
@@ -253,20 +265,60 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
   };
   const adsDurationStr = formatAdsDuration(session.ads_duration);
 
-  const getAdsTooltipContent = () => {
+  const getAdsTooltipContent = (showDetails: boolean) => {
       const embedded = session.embedded_trailers_duration || 0;
       const commercial = session.ads_duration - embedded;
-      if (embedded > 0) {
-          return (
-              <div className="flex flex-col gap-1 min-w-[200px]">
-                  <div className="flex justify-between items-center text-slate-300"><span>Коммерция:</span><span className="font-mono text-white">{formatAdsDuration(commercial)}</span></div>
-                  <div className="flex justify-between items-center text-indigo-300"><span>Вшитые:</span><span className="font-mono text-white">{formatAdsDuration(embedded)}</span></div>
-                  <div className="w-full h-px bg-slate-600 my-1"></div>
-                  <div className="flex justify-between items-center font-bold"><span>Всего:</span><span className="text-white">{formatAdsDuration(session.ads_duration)}</span></div>
+      const hasCommercialAds = session.commercial_ads && session.commercial_ads.length > 0;
+      
+      return (
+          <div className="flex flex-col gap-1 min-w-[200px]">
+              <div className="flex justify-between items-center text-slate-300">
+                  <span>Коммерция:</span>
+                  <span className="font-mono text-white">{formatAdsDuration(commercial)}</span>
               </div>
-          );
-      }
-      return "Общая длительность рекламного блока";
+              <div className="flex justify-between items-center text-indigo-300">
+                  <span>Вшитые:</span>
+                  <span className="font-mono text-white">{formatAdsDuration(embedded)}</span>
+              </div>
+              <div className="w-full h-px bg-slate-600 my-1"></div>
+              <div className="flex justify-between items-center font-bold">
+                  <span>Всего:</span>
+                  <span className="text-white">{formatAdsDuration(session.ads_duration)}</span>
+              </div>
+              
+              {hasCommercialAds && showDetails && (
+                 <div className="mt-2 pt-2 border-t border-slate-600/50 flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-200">
+                    {session.commercial_ads.map((ad, i) => (
+                       <div key={i} className="flex justify-between items-center text-xs">
+                          <span className="text-slate-400 truncate max-w-[180px]" title={ad.name}>{ad.name}</span>
+                          <span className="text-white font-mono shrink-0 ml-2">{formatAdsDuration(ad.duration)}</span>
+                       </div>
+                    ))}
+                 </div>
+              )}
+              {hasCommercialAds && !showDetails && (
+                  <div className="mt-1 text-[10px] text-slate-500 text-center italic opacity-70 border-t border-slate-700/50 pt-1">
+                      ПКМ для списка роликов
+                  </div>
+              )}
+          </div>
+      );
+  };
+
+  const handleAdsContextMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const newState = !showAdsDetails;
+      setShowAdsDetails(newState);
+
+      // Force update tooltip text if currently visible
+      setTooltipState(prev => {
+          // Only update if it's potentially visible or we want it to be ready
+          return {
+              ...prev,
+              text: getAdsTooltipContent(newState)
+          };
+      });
   };
 
   const hasCredits = session.credits_display_from_start || session.credits_display_from_end;
@@ -275,57 +327,84 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
 
   return (
     <>
-        <div onClick={() => onSelectMovie(session.name)} onMouseMove={handleMouseMove} style={{ animationDelay: `${index * 35}ms`, animationFillMode: 'both', willChange: 'transform, opacity' }} className={`relative w-full rounded-xl border group cursor-pointer ${isFinished ? 'opacity-50 grayscale' : ''} ${isStatusMenuOpen ? 'bg-[#1e293b] border-indigo-500 ring-1 ring-indigo-500 shadow-2xl z-[50]' : isSelected ? 'border-amber-400/80 bg-[#1e293b] ring-2 ring-amber-400 shadow-2xl shadow-amber-500/10 z-[45]' : shouldHighlight ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-400/50 shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] hover:z-[40]' : 'bg-[#1e293b] border-slate-700 hover:border-slate-500 hover:z-[40]'} animate-cascade-in transition-all duration-200 overflow-hidden`}>
+        <div onClick={() => onSelectMovie(session.name)} onMouseMove={handleMouseMove} style={{ animationDelay: `${index * 35}ms`, animationFillMode: 'both', willChange: 'transform, opacity' }} className={`relative w-full min-w-[300px] rounded-xl border group cursor-pointer ${isFinished ? 'opacity-50 grayscale' : ''} ${isStatusMenuOpen ? 'bg-[#1e293b] border-indigo-500 ring-1 ring-indigo-500 shadow-2xl z-[50]' : isSelected ? 'border-amber-400/80 bg-[#1e293b] ring-2 ring-amber-400 shadow-2xl shadow-amber-500/10 z-[45]' : shouldHighlight ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-400/50 shadow-[inset_0_0_15px_rgba(99,102,241,0.15)] hover:z-[40]' : 'bg-[#1e293b] border-slate-700 hover:border-slate-500 hover:z-[40]'} animate-cascade-in transition-all duration-200 overflow-hidden`}>
         <div className={`absolute top-0 bottom-0 left-0 w-1 ${statusConfig.bg}`} />
         <div className={`pl-3 pr-2 flex flex-col w-full card-content-wrapper ${isCompact ? 'py-1.5' : 'py-2'}`}>
-            <div className={`flex-none flex justify-between items-center leading-none border-b border-slate-700/50 ${isCompact ? 'pb-1.5' : 'pb-2'}`}>
-                <div className="flex items-baseline gap-2 font-mono">
-                    <span className={`font-bold tracking-tight ${isCompact ? 'text-lg' : 'text-xl'} ${shouldHighlight ? 'text-indigo-200 drop-shadow-sm' : 'text-slate-100'}`}>
-                        {session.time}
-                    </span>
-                    <span className={`text-slate-400 font-medium ${isCompact ? 'text-base' : 'text-base'}`}>
-                        - {session.end_time}
-                    </span>
-                    {/* Movie Duration from DB - Right of end time */}
-                    {durationStr && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-600/10 rounded border border-indigo-500/30 ml-2 animate-in fade-in zoom-in-95 duration-300">
-                            <Clock size={12} className="text-indigo-400" />
-                            <span className="text-xs font-bold text-indigo-300">{durationStr}</span>
-                        </div>
-                    )}
-                    {/* Ads Duration */}
-                    {adsDurationStr && (
-                        <div onMouseEnter={(e) => handleMouseEnter(e, getAdsTooltipContent(), session.embedded_trailers_duration > 0, session.embedded_trailers_duration > 0 ? "СТРУКТУРА РЕКЛАМЫ" : undefined)} onMouseLeave={handleMouseLeave} className={`flex items-center gap-1 border-l border-slate-700 pl-2 ml-1 cursor-help transition-colors ${session.embedded_trailers_duration > 0 ? 'text-indigo-300 hover:text-white' : 'text-indigo-400/80'}`}>
-                            <Megaphone size={11} />
-                            <span className="text-[10px] font-bold">{adsDurationStr}</span>
-                        </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                    {session.is_new && <span className="px-1.5 py-0.5 text-[11px] font-bold bg-indigo-600 text-white rounded-[4px] uppercase tracking-wider leading-none shadow-sm shadow-indigo-500/50">NEW</span>}
-                    {session.is_subtitled && <span className="px-1.5 py-0.5 text-[11px] font-bold bg-teal-500/10 text-teal-400 border border-teal-500/30 rounded-[4px] uppercase tracking-wider leading-none">SUB</span>}
-                    
-                    {/* Age Limit Badge */}
-                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-[4px] border leading-none ${session.age_limit >= 18 ? 'border-red-500/40 text-red-500 bg-red-500/10' : 'border-slate-600 text-slate-400'}`}>
-                        {session.age_limit}+
-                    </span>
+            
+            {/* --- HEADER ROW: Time, Duration, Ads, Badges --- */}
+            <div className={`flex-none flex justify-between items-center border-b border-slate-700/50 ${isCompact ? 'pb-1.5' : 'pb-2'} gap-2 overflow-hidden`}>
+                
+                {/* Left Side: Time info and Durations (Flexible) */}
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                    {/* Time & EndTime */}
+                    <div className="flex items-baseline gap-1.5 font-mono whitespace-nowrap shrink-0">
+                        <span className={`font-bold tracking-tight ${isCompact ? 'text-lg' : 'text-xl'} ${shouldHighlight ? 'text-indigo-200 drop-shadow-sm' : 'text-slate-100'}`}>
+                            {session.time}
+                        </span>
+                        <span className={`text-slate-400 font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
+                            - {session.end_time}
+                        </span>
+                    </div>
 
-                    {/* Format Badge */}
-                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-[4px] border leading-none ${session.Format === '3D' ? 'border-purple-500/40 text-purple-300 bg-purple-500/10' : 'border-slate-600 text-slate-400'}`}>
+                    {/* Meta Group: Duration & Ads (Can shrink) */}
+                    <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                        {/* Movie Duration */}
+                        {durationStr && (
+                            <div className={`flex items-center gap-1 px-1.5 h-[18px] bg-indigo-600/10 rounded border border-indigo-500/30 shrink-0 ml-0.5 animate-in fade-in zoom-in-95 duration-300`}>
+                                <Clock size={isCompact ? 10 : 12} className={`text-indigo-400 ${isCompact ? 'hidden xs:block' : ''}`} />
+                                <span className={`font-bold text-indigo-300 truncate leading-none ${isCompact ? 'text-[10px]' : 'text-xs'}`}>{durationStr}</span>
+                            </div>
+                        )}
+                        {/* Ads Duration */}
+                        {adsDurationStr && (
+                            <div 
+                                onMouseEnter={(e) => handleMouseEnter(e, getAdsTooltipContent(showAdsDetails), session.embedded_trailers_duration > 0 || session.commercial_ads?.length > 0, "СТРУКТУРА РЕКЛАМЫ")} 
+                                onMouseLeave={handleMouseLeave} 
+                                onContextMenu={handleAdsContextMenu}
+                                className={`flex items-center gap-1 h-[18px] border-l border-slate-700 pl-1.5 ml-0.5 cursor-help transition-colors shrink-0 ${session.embedded_trailers_duration > 0 || session.commercial_ads?.length > 0 ? 'text-indigo-300 hover:text-white' : 'text-indigo-400/80'}`}
+                            >
+                                <Megaphone size={isCompact ? 10 : 11} className={`${isCompact ? 'hidden xs:block' : ''}`} />
+                                <span className={`font-bold truncate leading-none ${isCompact ? 'text-[10px]' : 'text-[10px]'}`}>{adsDurationStr}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right Side: Badges (Fixed/Shrinkable) */}
+                <div className="flex items-center gap-1 shrink-0">
+                    {/* Tickets Badge */}
+                    {session.Tickets > 0 && (
+                        <div className="flex items-center gap-1 px-1.5 h-[18px] bg-emerald-500/10 rounded border border-emerald-500/30 text-emerald-400 select-none" title="Продано билетов">
+                            <Ticket size={11} className={`${isCompact ? 'hidden xs:block' : ''}`} />
+                            <span className="text-[11px] font-bold leading-none">{session.Tickets}</span>
+                        </div>
+                    )}
+                    
+                    {session.is_new && <div className="flex items-center justify-center px-1.5 h-[18px] text-[10px] md:text-[11px] font-bold bg-indigo-600 text-white rounded-[4px] uppercase tracking-wider leading-none shadow-sm shadow-indigo-500/50 select-none">NEW</div>}
+                    {session.is_subtitled && <div className="flex items-center justify-center px-1.5 h-[18px] text-[10px] md:text-[11px] font-bold bg-teal-500/10 text-teal-400 border border-teal-500/30 rounded-[4px] uppercase tracking-wider leading-none select-none">SUB</div>}
+                    
+                    {/* Age Limit */}
+                    <div className={`flex items-center justify-center h-[18px] text-[10px] md:text-[11px] font-bold px-1.5 rounded-[4px] border leading-none select-none ${session.age_limit >= 18 ? 'border-red-500/40 text-red-500 bg-red-500/10' : 'border-slate-600 text-slate-400'}`}>
+                        {session.age_limit}+
+                    </div>
+
+                    {/* Format */}
+                    <div className={`flex items-center justify-center h-[18px] text-[10px] md:text-[11px] font-bold px-1.5 rounded-[4px] border leading-none select-none ${session.Format === '3D' ? 'border-purple-500/40 text-purple-300 bg-purple-500/10' : 'border-slate-600 text-slate-400'}`}>
                         {session.Format}
-                    </span>
+                    </div>
                 </div>
             </div>
+
             <div className={`w-full flex flex-col ${isCompact ? 'py-1.5' : 'py-2'}`}>
                 <div className="w-full max-w-full">
-                    <h3 onClick={(e) => { handleDesktopClick(e, session.name, 'title') }} onMouseEnter={(e) => handleMouseEnter(e, session.name, true, "ПОЛНОЕ НАЗВАНИЕ")} onMouseLeave={handleMouseLeave} className={`font-bold leading-tight block truncate transition-colors ${isCompact ? 'text-lg' : 'text-xl'} ${copiedField === 'title' ? 'text-emerald-400' : 'text-slate-200 hover:text-indigo-300'}`}>
+                    <h3 onContextMenu={(e) => { handleRightClickCopy(e, session.name, 'title') }} onMouseEnter={(e) => handleMouseEnter(e, session.name, true, "ПОЛНОЕ НАЗВАНИЕ")} onMouseLeave={handleMouseLeave} className={`font-bold leading-tight block truncate transition-colors ${isCompact ? 'text-lg' : 'text-xl'} ${copiedField === 'title' ? 'text-emerald-400' : 'text-slate-200 hover:text-indigo-300'}`}>
                         {session.name}
                     </h3>
                 </div>
                 <div className="flex items-center gap-2 text-xs w-full overflow-hidden">
                     <div className="flex-1 min-w-0">
                         {hasDCP ? (
-                             <p onClick={(e) => { handleDesktopClick(e, session.dcp_package_name, 'dcp') }} onMouseEnter={(e) => handleMouseEnter(e, session.dcp_package_name, true, "FULL DCP NAME")} onMouseLeave={handleMouseLeave} className={`font-mono truncate leading-tight opacity-60 transition-colors ${isCompact ? 'text-xs' : 'text-sm'} ${copiedField === 'dcp' ? 'text-emerald-400' : 'text-slate-400 hover:text-indigo-300'}`}>{session.dcp_package_name}</p>
+                             <p onContextMenu={(e) => { handleRightClickCopy(e, session.dcp_package_name, 'dcp') }} onMouseEnter={(e) => handleMouseEnter(e, session.dcp_package_name, true, "FULL DCP NAME")} onMouseLeave={handleMouseLeave} className={`font-mono truncate leading-tight opacity-60 transition-colors ${isCompact ? 'text-xs' : 'text-sm'} ${copiedField === 'dcp' ? 'text-emerald-400' : 'text-slate-400 hover:text-indigo-300'}`}>{session.dcp_package_name}</p>
                         ) : (
                             <span className={`italic ${isCompact ? 'text-xs text-slate-600' : 'text-sm text-slate-600'}`}>Нет данных DCP</span>
                         )}
@@ -351,7 +430,7 @@ const MovieCardComponent: React.FC<MovieCardProps> = ({ session, settings, index
 };
 
 const arePropsEqual = (prev: MovieCardProps, next: MovieCardProps) => {
-    const sessionUnchanged = prev.session.id === next.session.id && prev.session.content_status === next.session.content_status && prev.session.time_status === next.session.time_status && prev.session.is_new === next.session.is_new && prev.session.name === next.session.name && prev.session.dcp_package_name === next.session.dcp_package_name && prev.session.ads_duration === next.session.ads_duration && prev.session.duration === next.session.duration && prev.session.embedded_trailers_duration === next.session.embedded_trailers_duration && prev.session.time === next.session.time && prev.session.age_limit === next.session.age_limit;
+    const sessionUnchanged = prev.session.id === next.session.id && prev.session.content_status === next.session.content_status && prev.session.time_status === next.session.time_status && prev.session.is_new === next.session.is_new && prev.session.name === next.session.name && prev.session.dcp_package_name === next.session.dcp_package_name && prev.session.ads_duration === next.session.ads_duration && prev.session.duration === next.session.duration && prev.session.embedded_trailers_duration === next.session.embedded_trailers_duration && prev.session.time === next.session.time && prev.session.age_limit === next.session.age_limit && prev.session.Tickets === next.session.Tickets;
     const settingsUnchanged = prev.settings.cardDensity === next.settings.cardDensity && prev.settings.highlightCurrent === next.settings.highlightCurrent && prev.settings.enableAnimations === next.settings.enableAnimations;
     const wasSelected = prev.selectedMovieName === prev.session.name;
     const isSelected = next.selectedMovieName === next.session.name;

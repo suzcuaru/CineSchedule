@@ -1,5 +1,6 @@
+
 import React, { memo, useMemo, useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import { MovieSession, AppSettings } from '../types';
+import { MovieSession, AppSettings, ContentStatus } from '../types';
 import { MovieCard, SkeletonMovieCard } from './MovieCard';
 import { formatDate } from '../services/dataService';
 import { CalendarDays, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -15,6 +16,7 @@ interface HallWeeklyViewProps {
   columnWidthClass?: string;
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
+  onStatusChange?: (id: string, status: ContentStatus) => void;
   refreshKey: number;
 }
 
@@ -29,6 +31,7 @@ interface DayColumnProps {
     onVisibilityChange: (id: string, isVisible: boolean) => void;
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
+    onStatusChange?: (id: string, status: ContentStatus) => void;
     refreshKey: number;
 }
 
@@ -41,7 +44,7 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, refreshKey }: DayColumnProps) => {
+const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, refreshKey }: DayColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const dateStr = formatDate(date);
@@ -143,12 +146,13 @@ const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, wi
                         hasData ? (
                             sortedSessions.map((session, idx) => (
                                 <MovieCard 
-                                    key={`${session.id}-${refreshKey}`} 
+                                    key={session.id} 
                                     session={session} 
                                     settings={settings}
                                     index={idx}
                                     selectedMovieName={selectedMovieName}
                                     onSelectMovie={onSelectMovie}
+                                    onStatusChange={onStatusChange}
                                 />
                             ))
                         ) : (
@@ -179,6 +183,7 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
   columnWidthClass = "w-full",
   selectedMovieName,
   onSelectMovie,
+  onStatusChange,
   refreshKey,
 }) => {
   
@@ -308,6 +313,7 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
                     onVisibilityChange={handleVisibilityChange}
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={onSelectMovie}
+                    onStatusChange={onStatusChange}
                     refreshKey={refreshKey}
                 />
              );

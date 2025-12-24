@@ -75,6 +75,17 @@ body {
   animation: cascade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* --- Shimmer Animation --- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
 /* --- Refined Smooth Icon Animations --- */
 @keyframes icon-pop-in {
   0% { opacity: 0; transform: scale(0.4) rotate(-20deg); filter: blur(2px); }
