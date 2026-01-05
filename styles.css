@@ -1,155 +1,147 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
 
+:root {
+  --primary-violet: #8b5cf6;
+  --terminal-bg: #0f172a;
+  --card-bg: #1e293b;
+  --terminal-border: rgba(139, 92, 246, 0.2);
+  --terminal-glow: rgba(139, 92, 246, 0.1);
+}
+
+/* Оптимизированные размеры шрифтов: масштабируются через rem */
+html.font-small { font-size: 13px; }
+html.font-medium { font-size: 15px; }
+html.font-large { font-size: 17px; }
+
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #0f172a; /* Slate 900 */
-  color: #e2e8f0; /* Slate 200 */
-  overflow: hidden; /* App handles scrolling */
+  background-color: var(--terminal-bg);
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.08), transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334155' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  color: #f1f5f9;
+  overflow: hidden;
+  user-select: none;
+  transition: font-size 0.2s ease-in-out;
 }
 
-/* Universal Monospace Helper */
-.font-mono {
-  font-family: 'Roboto Mono', monospace;
+.font-mono { font-family: 'Roboto Mono', monospace; }
+
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.3); border-radius: 10px; }
+
+/* Блокировка прокрутки страницы */
+.scroll-locked {
+  overflow: hidden !important;
+  touch-action: none !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
 }
 
-/* 
-   UTILITY: Hide Scrollbar but allow scrolling 
-*/
-.hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-.hide-scrollbar::-webkit-scrollbar {
-    display: none;
+.scroll-locked::-webkit-scrollbar {
+  display: none;
 }
 
-/* --- CUSTOM SCROLLBAR --- */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #475569 transparent;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 14px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #475569;
-  border: 4px solid transparent;
-  background-clip: content-box; 
-  border-radius: 9999px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #6366f1;
-  border: 4px solid transparent;
+html.scroll-locked,
+body.scroll-locked {
+  overflow: hidden !important;
+  touch-action: none !important;
 }
 
-/* --- Icon Morphing Animation --- */
-.icon-swap-container {
-  position: relative;
-  width: 24px;
-  height: 24px;
-}
-.icon-swap-item {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-.icon-primary.active { opacity: 1; transform: rotate(0deg) scale(1); }
-.icon-primary.inactive { opacity: 0; transform: rotate(-180deg) scale(0.5); }
-.icon-secondary.active { opacity: 1; transform: rotate(0deg) scale(1); }
-.icon-secondary.inactive { opacity: 0; transform: rotate(180deg) scale(0.5); }
-
-/* --- Premium Card Animation (Cascade In) --- */
 @keyframes cascade-in {
-  0% { opacity: 0; transform: translateY(20px) scale(0.95) skewY(2deg); filter: blur(4px); }
-  60% { opacity: 1; transform: translateY(0px) scale(1.02) skewY(0deg); filter: blur(0px); }
-  100% { opacity: 1; transform: translateY(0px) scale(1) skewY(0deg); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
-.animate-cascade-in {
-  animation: cascade-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
+.animate-cascade-in { animation: cascade-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
-/* --- Shimmer Animation --- */
+/* Скелетон shimmer эффект */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-.animate-shimmer {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
   background-size: 200% 100%;
-  animation: shimmer 2s infinite linear;
+  animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* --- Refined Smooth Icon Animations --- */
-@keyframes icon-pop-in {
-  0% { opacity: 0; transform: scale(0.4) rotate(-20deg); filter: blur(2px); }
-  50% { opacity: 1; transform: scale(1.15) rotate(5deg); filter: blur(0px); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+/* Анимация появления десктопного меню */
+.menu-fade-in {
+  animation: menuFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes error-bounce {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-2px); }
-  40%, 80% { transform: translateX(2px); }
+@keyframes menuFadeIn {
+  0% { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.animate-check-pop {
-  animation: icon-pop-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+/* Улучшенная анимация колонок залов */
+.hall-column-appear {
+  animation: hallColumnAppear 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-.animate-error-pop {
-  animation: icon-pop-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards, 
-             error-bounce 0.4s ease-in-out 0.3s;
+@keyframes hallColumnAppear {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
-/* Slower and smoother spin */
-@keyframes smooth-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-smooth-spin {
-  animation: smooth-spin 1.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+/* Отключение всех анимаций */
+.animations-disabled * {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
 }
 
-/* --- Mobile Modals --- */
-@keyframes mobile-slide-up { 0% { transform: translateY(100%); } 100% { transform: translateY(0); } }
-@keyframes mobile-slide-down { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
-@keyframes mobile-fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
-@keyframes mobile-slide-out-down { 0% { transform: translateY(0); } 100% { transform: translateY(100%); } }
-@keyframes mobile-slide-out-up { 0% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
-@keyframes mobile-fade-out { 0% { opacity: 1; } 100% { opacity: 0; } }
-
-.animate-mobile-slide-up { animation: mobile-slide-up 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-.animate-mobile-slide-down { animation: mobile-slide-down 0.4s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-.animate-mobile-fade-in { animation: mobile-fade-in 0.3s ease-out forwards; }
-.animate-mobile-slide-out-down { animation: mobile-slide-out-down 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-.animate-mobile-slide-out-up { animation: mobile-slide-out-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-.animate-mobile-fade-out { animation: mobile-fade-out 0.3s ease-out forwards; }
-
-/* --- Refresh Button Breathing Glow --- */
-@keyframes breathing-glow {
-  0%, 100% { border-color: #6366f1; box-shadow: 0 0 10px 0 rgba(99, 102, 241, 0.2); }
-  50% { border-color: #a5b4fc; box-shadow: 0 0 15px 3px rgba(129, 140, 248, 0.3); }
-}
-.animate-breathing-glow {
-  animation: breathing-glow 1.5s ease-in-out infinite;
+.animations-disabled .animate-cascade-in,
+.animations-disabled .animate-terminal-glow,
+.animations-disabled .skeleton-shimmer,
+.animations-disabled .menu-fade-in,
+.animations-disabled .hall-column-appear,
+.animations-disabled .animate-terminal-scan,
+.animations-disabled .animate-terminal-flicker {
+  animation: none !important;
+  background: #1e293b !important;
 }
 
-/* --- FONT SIZING --- */
-html { font-size: 16px; }
-html.font-small { font-size: 14.5px; }
-html.font-large { font-size: 17.5px; }
+.animate-terminal-glow { animation: terminal-glow 3s ease-in-out infinite; }
+@keyframes terminal-glow {
+  0%, 100% { text-shadow: 0 0 8px rgba(139, 92, 246, 0.2); }
+  50% { text-shadow: 0 0 16px rgba(139, 92, 246, 0.4); }
+}
 
-/* --- THEME OVERRIDES --- */
-[data-theme="sepia"] body, [data-theme="sepia"] .bg-\[\#0f172a\], [data-theme="sepia"] .bg-\[\#0b0f19\] { background-color: #f5f1e8 !important; color: #5a4b43 !important; }
-[data-theme="sepia"] .bg-\[\#1e293b\], [data-theme="sepia"] .bg-\[\#161e2e\], [data-theme="sepia"] .bg-gradient-to-b { background-color: #fdfaf3 !important; background-image: none !important; }
-[data-theme="sepia"] .border-slate-800, [data-theme="sepia"] .border-slate-700 { border-color: #d4c8b8 !important; }
+/* Анимация эквалайзера при синхронизации данных */
+.animate-terminal-scan {
+  animation: terminalScan 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
-[data-theme="dusk"] body, [data-theme="dusk"] .bg-\[\#0f172a\], [data-theme="dusk"] .bg-\[\#0b0f19\] { background-color: #1a202c !important; color: #e2e8f0 !important; }
-[data-theme="dusk"] .bg-\[\#1e293b\], [data-theme="dusk"] .bg-\[\#161e2e\] { background-color: #2d3748 !important; }
+@keyframes terminalScan {
+  0%, 100% {
+    opacity: 0.3;
+    height: 15%;
+  }
+  50% {
+    opacity: 1;
+    height: 100%;
+  }
+}
+
+/* Мигание эквалайзера */
+.animate-terminal-flicker {
+  animation: terminalFlicker 0.1s ease-in-out infinite;
+}
+
+@keyframes terminalFlicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.hud-bracket-tl { position: absolute; top: 0; left: 0; width: 14px; height: 14px; border-top: 2px solid var(--primary-violet); border-left: 2px solid var(--primary-violet); opacity: 0.3; border-radius: 6px 0 0 0; }
+.hud-bracket-tr { position: absolute; top: 0; right: 0; width: 14px; height: 14px; border-top: 2px solid var(--primary-violet); border-right: 2px solid var(--primary-violet); opacity: 0.3; border-radius: 0 6px 0 0; }
+.hud-bracket-bl { position: absolute; bottom: 0; left: 0; width: 14px; height: 14px; border-bottom: 2px solid var(--primary-violet); border-left: 2px solid var(--primary-violet); opacity: 0.3; border-radius: 0 0 0 6px; }
+.hud-bracket-br { position: absolute; bottom: 0; right: 0; width: 14px; height: 14px; border-bottom: 2px solid var(--primary-violet); border-right: 2px solid var(--primary-violet); opacity: 0.3; border-radius: 0 0 6px 0; }

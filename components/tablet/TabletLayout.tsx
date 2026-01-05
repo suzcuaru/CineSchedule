@@ -6,6 +6,8 @@ import { useAppLogic } from '../../hooks/useAppLogic';
 const ScheduleGrid = React.lazy(() => import('../ScheduleGrid').then(module => ({ default: module.ScheduleGrid })));
 const HallWeeklyView = React.lazy(() => import('../HallWeeklyView').then(module => ({ default: module.HallWeeklyView })));
 const DashboardView = React.lazy(() => import('../system/DashboardView').then(module => ({ default: module.DashboardView })));
+const ReleasesView = React.lazy(() => import('../system/ReleasesView').then(module => ({ default: module.ReleasesView })));
+const RemoteControlView = React.lazy(() => import('../system/RemoteControlView').then(module => ({ default: module.RemoteControlView })));
 
 const SettingsView = React.lazy(() => import('../system/SettingsView').then(module => ({ default: module.SettingsView })));
 const HelpView = React.lazy(() => import('../system/HelpView').then(module => ({ default: module.HelpView })));
@@ -46,6 +48,10 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     refreshKey={refreshKey}
                 />
               );
+          case 'releases':
+              return <ReleasesView />;
+          case 'remote_control':
+              return <RemoteControlView />;
           case 'hall_weekly':
               return (
                 <HallWeeklyView 
@@ -58,6 +64,7 @@ export const TabletLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =>
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
                     onStatusChange={handleStatusChange}
+                    updateSetting={updateSetting}
                     refreshKey={refreshKey}
                 />
               );

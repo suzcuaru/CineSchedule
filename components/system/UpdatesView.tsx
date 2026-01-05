@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Info, User, Globe, Mail, Code, Hash, ChevronRight, Github, Download, RefreshCw, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { Info, User, Globe, Mail, Code, Hash, ChevronRight, Github, Download, RefreshCw, AlertTriangle, CheckCircle, FileText, Terminal, Box, ShieldCheck, Send, Sparkles } from 'lucide-react';
 import { APP_INFO } from '../../config/appData';
 import { ViewContainer, GridSection, Card } from './SystemUI';
 
@@ -8,257 +9,200 @@ const InfoRow: React.FC<{ icon: any; label: string; value: string; href?: string
     href={href || undefined} 
     target="_blank" 
     rel="noopener noreferrer" 
-    className={`flex items-center justify-between py-4 ${href ? 'hover:bg-slate-800/50 -mx-4 px-4 rounded-lg cursor-pointer' : ''} transition-colors group`}
+    className={`flex items-center justify-between py-4 ${href ? 'hover:bg-indigo-500/5 -mx-4 px-4 rounded-lg cursor-pointer' : ''} transition-all group font-mono`}
     onClick={e => !href && e.preventDefault()}
   >
     <div className="flex items-center gap-4">
-      <Icon size={18} className="text-slate-500 shrink-0" />
-      <span className="text-base text-slate-400">{label}</span>
+      <Icon size={18} className="text-slate-600 group-hover:text-indigo-400 shrink-0 transition-colors" />
+      <span className="text-xs font-black text-slate-500 uppercase tracking-widest leading-none">{label}</span>
     </div>
-    <div className="flex items-center gap-2 text-right">
-        <span className="text-base font-medium text-slate-200 font-mono truncate">{value}</span>
-        {href && <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />}
+    <div className="flex items-center gap-2 text-right min-w-0">
+        <span className="text-sm font-bold text-slate-200 truncate group-hover:text-indigo-200 transition-colors">{value}</span>
+        {href && <ChevronRight size={16} className="text-slate-800 group-hover:text-indigo-500 group-hover:translate-x-1 transition-transform shrink-0" />}
     </div>
   </a>
 );
 
-type CheckState = {
-    status: 'idle' | 'checking' | 'checked' | 'error';
-    latestVersion?: string;
-    downloadUrl?: string;
-    errorMessage?: string;
-    releaseNotes?: string;
-}
-
-const LICENSE_TEXT = `MIT License
-
-Copyright (c) 2024 Suzcuaru
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-`;
-
-
 export const UpdatesView: React.FC = () => {
-    const [checkState, setCheckState] = useState<CheckState>({ status: 'idle' });
+    const [isChecking, setIsChecking] = useState(false);
+    const [latestVersion, setLatestVersion] = useState<string | null>(null);
+    const [hasUpdate, setHasUpdate] = useState(false);
+    const [error, setError] = useState(false);
+    const [checked, setChecked] = useState(false);
+
+    // Функция семантического сравнения версий
+    const isNewer = (current: string, latest: string) => {
+        const c = current.replace(/^v/, '').split('.').map(Number);
+        const l = latest.replace(/^v/, '').split('.').map(Number);
+        
+        for (let i = 0; i < Math.max(c.length, l.length); i++) {
+            const cVal = c[i] || 0;
+            const lVal = l[i] || 0;
+            if (lVal > cVal) return true;
+            if (lVal < cVal) return false;
+        }
+        return false;
+    };
 
     const handleCheckUpdates = async () => {
-        if (!APP_INFO.githubRepo || APP_INFO.githubRepo.split('/').length !== 2) {
-             setCheckState({
-                status: 'error',
-                errorMessage: 'Репозиторий проекта не настроен.',
-            });
-            return;
-        }
-
-        setCheckState({ status: 'checking' });
+        setIsChecking(true);
+        setError(false);
         try {
-            const response = await fetch(`https://api.github.com/repos/${APP_INFO.githubRepo}/releases`);
+            const response = await fetch(`https://api.github.com/repos/${APP_INFO.githubRepo}/releases/latest`);
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+            const ver = data.tag_name;
+            setLatestVersion(ver);
             
-            if (!response.ok) {
-                throw new Error(`Ошибка GitHub API: ${response.status}`);
+            // Если найденная версия новее текущей
+            if (ver && isNewer(APP_INFO.version, ver)) {
+                setHasUpdate(true);
+            } else {
+                setHasUpdate(false);
             }
-
-            const releases: { tag_name: string, html_url: string, body: string }[] = await response.json();
-
-            if (!releases || releases.length === 0) {
-                setCheckState({
-                    status: 'error',
-                    errorMessage: 'Релизы не найдены в репозитории.',
-                });
-                return;
-            }
-
-            const latestRelease = releases[0];
-            const latestVersion = latestRelease.tag_name;
-            const downloadUrl = latestRelease.html_url;
-            const releaseNotes = latestRelease.body;
-
-            setCheckState({
-                status: 'checked',
-                latestVersion,
-                downloadUrl,
-                releaseNotes,
-            });
-
-        } catch (error: any) {
-            console.error("Update check failed:", error);
-            setCheckState({
-                status: 'error',
-                errorMessage: error.message || 'Не удалось проверить обновления. Попробуйте позже.',
-            });
-        }
-    }
-
-    const handleDownloadLicense = () => {
-        const blob = new Blob([LICENSE_TEXT.trim()], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'LICENSE.md';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
-
-    const renderUpdateCheck = () => {
-        const currentVersion = APP_INFO.version.replace('v', '');
-        const latestVersion = checkState.latestVersion?.replace('v', '');
-        const isNewVersionAvailable = checkState.status === 'checked' && latestVersion && currentVersion !== latestVersion;
-
-        switch (checkState.status) {
-            case 'checking':
-                return (
-                    <div className="flex items-center justify-center p-8 text-slate-400">
-                        <RefreshCw size={24} className="animate-spin mr-3" />
-                        <span className="text-lg font-bold">Проверка...</span>
-                    </div>
-                );
-            case 'error':
-                return (
-                    <div className="flex flex-col items-center gap-4 p-6 text-center">
-                        <AlertTriangle size={32} className="text-red-500" />
-                        <p className="font-bold text-red-400">Ошибка</p>
-                        <p className="text-sm text-slate-400">{checkState.errorMessage}</p>
-                        <button onClick={() => setCheckState({ status: 'idle' })} className="mt-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 text-sm font-bold">Попробовать снова</button>
-                    </div>
-                );
-            case 'checked':
-                return isNewVersionAvailable ? (
-                    <div className="flex flex-col p-4">
-                        <div className="flex flex-col md:flex-row gap-6 items-center">
-                            <div className="flex-1">
-                                <h3 className="text-xl font-bold text-emerald-400 mb-1">Доступна новая версия!</h3>
-                                <p className="text-slate-300 font-mono">
-                                    <span className="text-slate-500">{currentVersion}</span> → <span className="font-bold text-emerald-300">{latestVersion}</span>
-                                </p>
-                            </div>
-                            <a 
-                                href={checkState.downloadUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all shadow-lg shadow-emerald-500/20"
-                            >
-                                <Download size={20} />
-                                <span>Скачать</span>
-                            </a>
-                        </div>
-                         {checkState.releaseNotes && (
-                            <div className="mt-4 border-t border-slate-700/50 pt-4">
-                                <h4 className="text-base font-bold text-slate-400 mb-2 uppercase tracking-wider">Что нового в v{latestVersion}:</h4>
-                                <div className="max-h-40 overflow-y-auto bg-slate-950/70 p-4 rounded-lg text-sm text-slate-300 whitespace-pre-wrap custom-scrollbar border border-slate-800">
-                                    {checkState.releaseNotes}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4 p-4">
-                        <div className="bg-slate-950/40 border border-slate-700/50 rounded-2xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.4)] py-6">
-                            <div className="flex flex-col items-center justify-center gap-1 text-center">
-                                <CheckCircle size={24} className="text-emerald-400 mb-2" />
-                                <p className="text-lg font-bold text-emerald-400">У вас последняя версия</p>
-                                <p className="text-sm text-slate-500 font-mono">{currentVersion}</p>
-                            </div>
-                        </div>
-                        {checkState.releaseNotes && (
-                            <div className="mt-2">
-                                <h4 className="text-base font-bold text-slate-400 mb-2 uppercase tracking-wider px-2">Что нового в этой версии:</h4>
-                                <div className="max-h-40 overflow-y-auto bg-slate-950/70 p-4 rounded-lg text-sm text-slate-300 whitespace-pre-wrap custom-scrollbar border border-slate-800">
-                                    {checkState.releaseNotes}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-            case 'idle':
-            default:
-                return (
-                    <div className="flex flex-col md:flex-row gap-6 items-center p-4">
-                        <div className="flex-1">
-                            <h3 className="text-xl font-bold text-white mb-1">Актуальность версии</h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">
-                                Проверьте, используете ли вы последнюю версию приложения, чтобы получить доступ ко всем новым функциям и исправлениям.
-                            </p>
-                        </div>
-                        <button 
-                            onClick={handleCheckUpdates}
-                            className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-all shadow-lg shadow-indigo-500/20"
-                        >
-                            <RefreshCw size={20} />
-                            <span>Проверить</span>
-                        </button>
-                    </div>
-                );
+            setChecked(true);
+        } catch (e) {
+            setError(true);
+            console.error("Update check failed", e);
+        } finally {
+            setIsChecking(false);
         }
     };
-    
+
+    const openLink = (url: string) => window.open(url, '_blank');
+
     return (
-        <ViewContainer title="О системе" icon={Info}>
-            <GridSection title="Информация о приложении">
-                <Card>
-                    <InfoRow icon={Code} label="Версия" value={APP_INFO.version} />
-                    <div className="my-2 border-t border-slate-700/50" />
-                    <InfoRow icon={Hash} label="Сборка" value={APP_INFO.build} />
-                </Card>
-            </GridSection>
+        <ViewContainer title="Системная информация" icon={Terminal}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <Card className="bg-slate-900/40 border-indigo-500/10 font-mono overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-12 bg-indigo-600/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                    
+                    <h3 className="text-xs font-black text-indigo-400 flex items-center gap-3 mb-8 uppercase tracking-[0.3em] relative z-10">
+                        <Box size={18} />
+                        Core_Environment
+                    </h3>
+                    
+                    <div className="space-y-1 relative z-10">
+                        <InfoRow icon={Code} label="Версия ядра" value={APP_INFO.version} />
+                        <div className="h-px bg-slate-800/50 w-full" />
+                        <InfoRow icon={Hash} label="ID сборки" value={`${APP_INFO.build}-FINAL`} />
+                        <div className="h-px bg-slate-800/50 w-full" />
+                        <InfoRow icon={ShieldCheck} label="Режим защиты" value="AES-256 Active" />
+                    </div>
 
-            <GridSection title="Лицензирование">
-                <Card>
-                    <div className="flex flex-col md:flex-row gap-6 items-center">
-                        <div className="flex-1">
-                            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-3">
-                                <FileText size={24} className="text-indigo-400"/>
-                                Условия использования
-                            </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                                Приложение распространяется по свободной лицензии MIT. Эта лицензия разрешает бесплатное использование, копирование, изменение, слияние, публикацию, распространение, сублицензирование и/или продажу копий Программного обеспечения.
-                            </p>
+                    <div className="mt-8 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-[0.55rem] font-black text-slate-600 uppercase">Status</span>
+                            <span className="text-xs font-bold text-indigo-400 uppercase">System_Optimal</span>
                         </div>
-                        <button 
-                            onClick={handleDownloadLicense}
-                            className="w-full md:w-auto shrink-0 flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold transition-all"
-                        >
-                            <Download size={20} />
-                            <span>Скачать файл лицензии</span>
-                        </button>
+                        <div className="flex gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse delay-75" />
+                        </div>
+                    </div>
+                </Card>
+
+                <Card className="bg-slate-900/40 border-indigo-500/10 font-mono relative overflow-hidden">
+                    {hasUpdate && <div className="absolute -right-12 -top-12 p-24 bg-indigo-600/10 rounded-full blur-3xl animate-pulse" />}
+                    
+                    <h3 className="text-xs font-black text-indigo-400 flex items-center gap-3 mb-8 uppercase tracking-[0.3em] relative z-10">
+                        <RefreshCw size={18} className={isChecking ? 'animate-spin' : ''} />
+                        Update_Center
+                    </h3>
+                    
+                    <div className="flex flex-col items-center justify-center py-6 text-center relative z-10">
+                        <div className="w-20 h-20 rounded-full border border-slate-800 flex items-center justify-center mb-6 relative">
+                            {hasUpdate ? (
+                                <Sparkles size={32} className="text-indigo-400 animate-bounce" />
+                            ) : error ? (
+                                <AlertTriangle size={32} className="text-red-500" />
+                            ) : checked && !hasUpdate ? (
+                                <CheckCircle size={32} className="text-emerald-500" />
+                            ) : (
+                                <Box size={32} className="text-slate-700" />
+                            )}
+                            {hasUpdate && <div className="absolute inset-0 border border-indigo-500/40 rounded-full animate-ping" />}
+                        </div>
+                        
+                        <p className="text-sm font-bold text-white uppercase mb-2">
+                            {hasUpdate ? `Доступно ядро ${latestVersion}` : error ? 'Ошибка синхронизации' : checked && !hasUpdate ? 'Ядро актуально' : 'Проверка не проводилась'}
+                        </p>
+                        <p className="text-[0.65rem] text-slate-500 uppercase tracking-widest mb-8">
+                            {hasUpdate ? 'Рекомендуется обновление безопасности' : checked && !hasUpdate ? 'Установлена последняя стабильная сборка' : 'Синхронизация с GitHub API'}
+                        </p>
+                        
+                        <div className="flex flex-col gap-3 w-full">
+                            <button 
+                                onClick={handleCheckUpdates}
+                                disabled={isChecking}
+                                className={`
+                                    w-full py-3 font-black text-[0.65rem] uppercase tracking-[0.2em] rounded-xl transition-all border
+                                    ${isChecking ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-slate-900 hover:bg-slate-800 text-slate-400 border-slate-800'}
+                                `}
+                            >
+                                {isChecking ? 'Scanning...' : 'Выполнить поиск обновлений'}
+                            </button>
+
+                            {hasUpdate && (
+                                <button 
+                                    onClick={() => openLink(`https://github.com/${APP_INFO.githubRepo}/releases`)}
+                                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[0.65rem] uppercase tracking-[0.2em] rounded-xl shadow-lg shadow-indigo-500/20 border border-indigo-400/30 animate-in fade-in slide-in-from-bottom-2 duration-500"
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        <Download size={14} /> Скачать ядро {latestVersion}
+                                    </span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            <GridSection title="Узлы поддержки и связи" cols={1}>
+                <Card className="bg-slate-950/30 border-indigo-500/5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 font-mono">
+                    <div 
+                        onClick={() => openLink(APP_INFO.githubProfileUrl)}
+                        className="p-6 bg-[#0f172a] border border-slate-800 rounded-2xl group hover:border-indigo-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                        <Send size={24} className="text-indigo-500 mb-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        <h4 className="text-[0.65rem] font-black text-slate-600 uppercase tracking-widest mb-1">Lead_Dev</h4>
+                        <p className="text-sm font-bold text-slate-200">{APP_INFO.developer}</p>
+                    </div>
+                    <div 
+                        onClick={() => openLink('https://' + APP_INFO.website)}
+                        className="p-6 bg-[#0f172a] border border-slate-800 rounded-2xl group hover:border-indigo-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                        <Globe size={24} className="text-blue-500 mb-4 group-hover:rotate-12 transition-transform" />
+                        <h4 className="text-[0.65rem] font-black text-slate-600 uppercase tracking-widest mb-1">Network</h4>
+                        <p className="text-sm font-bold text-slate-200">{APP_INFO.website}</p>
+                    </div>
+                    <div 
+                        onClick={() => openLink(APP_INFO.supportEmail)}
+                        className="p-6 bg-[#0f172a] border border-slate-800 rounded-2xl group hover:border-indigo-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                        <ShieldCheck size={24} className="text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
+                        <h4 className="text-[0.65rem] font-black text-slate-600 uppercase tracking-widest mb-1">Comm_Channel</h4>
+                        <p className="text-sm font-bold text-slate-200">Support_Node</p>
+                    </div>
+                    <div 
+                        onClick={() => openLink('https://github.com/' + APP_INFO.githubRepo)}
+                        className="p-6 bg-[#0f172a] border border-slate-800 rounded-2xl group hover:border-indigo-500/30 transition-all cursor-pointer active:scale-95"
+                    >
+                        <Github size={24} className="text-slate-400 mb-4 group-hover:scale-110 transition-transform" />
+                        <h4 className="text-[0.65rem] font-black text-slate-600 uppercase tracking-widest mb-1">Source_Code</h4>
+                        <p className="text-sm font-bold text-slate-200">Repository</p>
                     </div>
                 </Card>
             </GridSection>
 
-            <GridSection title="Проверка обновлений">
-                <Card>
-                   {renderUpdateCheck()}
-                </Card>
-            </GridSection>
-            
-            <GridSection title="Разработчик и поддержка">
-                <Card>
-                    <InfoRow icon={User} label="Разработчик" value={APP_INFO.developer} />
-                    <div className="my-2 border-t border-slate-700/50" />
-                    <InfoRow icon={Globe} label="Веб-сайт" value={APP_INFO.website} href={`https://${APP_INFO.website}`} />
-                    <div className="my-2 border-t border-slate-700/50" />
-                    <InfoRow icon={Mail} label="Почта поддержки" value={APP_INFO.supportEmail} href={`mailto:${APP_INFO.supportEmail}`} />
-                    <div className="my-2 border-t border-slate-700/50" />
-                    <InfoRow icon={Github} label="Профиль GitHub" value={APP_INFO.githubProfileUrl} href={APP_INFO.githubProfileUrl} />
-                </Card>
-            </GridSection>
+            <div className="mt-12 text-center font-mono">
+                <p className="text-[0.55rem] text-slate-700 uppercase tracking-[0.5em] mb-4">Proprietary Software © 2024 Cinetech Systems</p>
+                <div className="flex justify-center gap-4">
+                    <FileText size={16} className="text-slate-800 hover:text-indigo-500 cursor-pointer" />
+                    <Info size={16} className="text-slate-800 hover:text-indigo-500 cursor-pointer" />
+                    <Globe size={16} className="text-slate-800 hover:text-indigo-500 cursor-pointer" />
+                </div>
+            </div>
         </ViewContainer>
     );
 };

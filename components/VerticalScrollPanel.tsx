@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
@@ -38,7 +39,7 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
         }
 
         const ratio = clientHeight / scrollHeight;
-        const newThumbHeight = Math.max(20, Math.min(trackHeight, ratio * trackHeight));
+        const newThumbHeight = Math.max(30, Math.min(trackHeight, ratio * trackHeight));
         setThumbHeight(newThumbHeight);
 
         if (!isDragging) {
@@ -64,7 +65,7 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
                 }
                 scrollTimeoutRef.current = setTimeout(() => {
                     setIsScrolling(false);
-                }, 1500);
+                }, 1000); // Сокращено до 1 сек для эффекта авто-скрытия
             };
 
             el.addEventListener('scroll', handleScroll, { passive: true });
@@ -77,7 +78,6 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
             observerRef.current = new ResizeObserver(() => requestAnimationFrame(updateMetrics));
             observerRef.current.observe(el);
             
-            // Observe child elements as their loading can change scroll height
             Array.from(el.children).forEach(child => observerRef.current?.observe(child));
 
             updateMetrics();
@@ -179,27 +179,20 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
         return (scrollRatio * availableSpace / trackH) * 100;
     };
 
+    if (!hasOverflow) return null;
+
     return (
         <div
             className={`
-                absolute right-1 z-50 flex flex-col items-center w-2
-                bg-slate-900/50 backdrop-blur-sm border border-slate-700/30 rounded-full py-1 shadow-xl select-none
-                transition-opacity duration-300 ease-in-out
-                ${isDragging ? 'shadow-indigo-500/20 border-slate-700/50' : ''}
-                ${hasOverflow && (isScrolling || isDragging) ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+                absolute right-1 z-[100] flex flex-col items-center w-[6px] md:w-2
+                bg-slate-900/30 rounded-full py-1 select-none
+                ${(isScrolling || isDragging) ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2 pointer-events-none'}
             `}
             style={{
                 top: topOffset,
                 bottom: bottomOffset,
             }}
         >
-            <button
-                onClick={() => handleScrollButton('up')}
-                className="w-full flex justify-center py-0.5 text-slate-600 hover:text-indigo-400 active:text-indigo-300 active:scale-90 transition-all mb-0.5 cursor-pointer"
-            >
-                <ChevronUp size={6} strokeWidth={4} />
-            </button>
-
             <div
                 ref={trackRef}
                 onClick={handleTrackClick}
@@ -208,11 +201,10 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
                 <div
                     onMouseDown={handleThumbMouseDown}
                     className={`
-                        absolute left-1/2 -translate-x-1/2 w-1 rounded-full cursor-grab active:cursor-grabbing
-                        transition-colors duration-100 z-10
+                        absolute left-1/2 -translate-x-1/2 w-full rounded-full cursor-grab active:cursor-grabbing
                         ${isDragging
-                            ? 'bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]'
-                            : 'bg-indigo-500/80 hover:bg-indigo-400'
+                            ? 'bg-indigo-500'
+                            : 'bg-indigo-600/60 hover:bg-indigo-500'
                         }
                     `}
                     style={{
@@ -221,13 +213,6 @@ export const VerticalScrollPanel: React.FC<VerticalScrollPanelProps> = ({
                     }}
                 />
             </div>
-
-            <button
-                onClick={() => handleScrollButton('down')}
-                className="w-full flex justify-center py-0.5 text-slate-600 hover:text-indigo-400 active:text-indigo-300 active:scale-90 transition-all mt-0.5 cursor-pointer"
-            >
-                <ChevronDown size={6} strokeWidth={4} />
-            </button>
         </div>
     );
 };

@@ -1,11 +1,13 @@
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { Navbar } from '../Navbar';
 import { useAppLogic } from '../../hooks/useAppLogic';
 
 const ScheduleGrid = React.lazy(() => import('../ScheduleGrid').then(module => ({ default: module.ScheduleGrid })));
 const HallWeeklyView = React.lazy(() => import('../HallWeeklyView').then(module => ({ default: module.HallWeeklyView })));
 const DashboardView = React.lazy(() => import('../system/DashboardView').then(module => ({ default: module.DashboardView })));
+const ReleasesView = React.lazy(() => import('../system/ReleasesView').then(module => ({ default: module.ReleasesView })));
+const RemoteControlView = React.lazy(() => import('../system/RemoteControlView').then(module => ({ default: module.RemoteControlView })));
 
 const SettingsView = React.lazy(() => import('../system/SettingsView').then(module => ({ default: module.SettingsView })));
 const HelpView = React.lazy(() => import('../system/HelpView').then(module => ({ default: module.HelpView })));
@@ -21,7 +23,15 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
       selectedMovieName, handleSelectMovie, handleStatusChange, refreshKey
   } = props;
 
-  const responsiveColumnClass = "w-full md:w-1/2 lg:w-1/3 2xl:w-1/4 min-w-[325px]";
+  const responsiveColumnClass = useMemo(() => {
+    const cols = appSettings.gridColumns || 4;
+    switch(cols) {
+        case 3: return "w-full md:w-1/2 lg:w-1/3 min-w-[325px]";
+        case 5: return "w-full md:w-1/2 lg:w-1/3 2xl:w-1/5 min-w-[300px]";
+        case 4:
+        default: return "w-full md:w-1/2 lg:w-1/3 2xl:w-1/4 min-w-[325px]";
+    }
+  }, [appSettings.gridColumns]);
 
   const renderContent = () => {
       switch (viewMode.type) {
@@ -45,9 +55,14 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
                     onStatusChange={handleStatusChange}
+                    updateSetting={updateSetting}
                     refreshKey={refreshKey}
                 />
               );
+          case 'releases':
+              return <ReleasesView />;
+          case 'remote_control':
+              return <RemoteControlView />;
           case 'hall_weekly':
               return (
                 <HallWeeklyView 
@@ -60,6 +75,7 @@ export const DesktopLayout: React.FC<ReturnType<typeof useAppLogic>> = (props) =
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={handleSelectMovie}
                     onStatusChange={handleStatusChange}
+                    updateSetting={updateSetting}
                     refreshKey={refreshKey}
                 />
               );

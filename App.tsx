@@ -7,24 +7,20 @@ import { TabletLayout } from './components/tablet/TabletLayout';
 import { DesktopLayout } from './components/desktop/DesktopLayout';
 
 const App: React.FC = () => {
-  // 1. Detect Device
   const device = useDeviceType();
-  
-  // 2. Load Core Logic (State, Data Fetching)
   const appLogic = useAppLogic();
 
-  // 3. Apply Global Styles from Settings
   useEffect(() => {
     const root = document.documentElement;
     
-    // Set theme
+    // Применяем тему к html для CSS переменных
     root.dataset.theme = appLogic.appSettings.theme;
 
-    // Set font size
+    // Применяем размер шрифта к html элементу
     root.classList.remove('font-small', 'font-medium', 'font-large');
     root.classList.add(`font-${appLogic.appSettings.fontSize}`);
 
-    // Set animations
+    // Управление анимациями
     if (appLogic.appSettings.enableAnimations) {
         root.classList.remove('animations-disabled');
     } else {
@@ -34,7 +30,6 @@ const App: React.FC = () => {
   }, [appLogic.appSettings.theme, appLogic.appSettings.fontSize, appLogic.appSettings.enableAnimations]);
 
 
-  // 4. Render Specific Layout
   if (device === 'mobile') {
       return <MobileLayout {...appLogic} />;
   }

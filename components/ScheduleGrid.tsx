@@ -16,6 +16,7 @@ interface ScheduleGridProps {
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
   onStatusChange?: (id: string, status: ContentStatus) => void;
+  updateSetting?: (key: keyof AppSettings, value: any) => void;
   refreshKey: number;
 }
 
@@ -30,34 +31,25 @@ interface HallColumnProps {
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
     onStatusChange?: (id: string, status: ContentStatus) => void;
+    updateSetting?: (key: keyof AppSettings, value: any) => void;
     refreshKey: number;
 }
 
-// --- HELPER: Determine Column Status ---
-// Returns: 'warning' | 'ready' | 'default'
 const getColumnStatus = (sessions: MovieSession[]) => {
     if (!sessions || sessions.length === 0) return 'default';
-
-    // 1. Check for WARNINGS (Any status that isn't 'ready_hall' and isn't 'no_status')
-    const hasWarning = sessions.some(s => 
-        s.content_status !== 'ready_hall' && 
-        s.content_status !== 'no_status'
-    );
+    const hasWarning = sessions.some(s => s.content_status !== 'ready_hall' && s.content_status !== 'no_status');
     if (hasWarning) return 'warning';
-
-    // 2. Check for READY (If we have ready_hall and no warnings)
-    const isReady = sessions.some(s => s.content_status === 'ready_hall');
-    if (isReady) return 'ready';
-
+    const isAllReady = sessions.every(s => s.content_status === 'ready_hall');
+    if (isAllReady) return 'ready';
     return 'default';
 };
 
-const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, refreshKey }: HallColumnProps) => {
+const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, updateSetting, refreshKey }: HallColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const colStatus = useMemo(() => getColumnStatus(sessions), [sessions]);
+    const enableAnimations = settings.enableAnimations;
 
-    // Use cleaned name if available, otherwise original name
     const displayName = hall.clean_name || hall.name;
     const categoryName = hall.category_name || '';
 
@@ -66,14 +58,12 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
             ([entry]) => {
                 onVisibilityChange(hall.name, entry.isIntersecting);
             },
-            { threshold: 0.6 } // 60% visibility required to be "Active"
+            { threshold: 0.6 }
         );
-
         if (columnRef.current) observer.observe(columnRef.current);
         return () => observer.disconnect();
     }, [hall.name, onVisibilityChange]);
 
-    // Header Styles based on Status
     let headerStyle = "bg-gradient-to-b from-slate-800/40 to-slate-900/40 border-white/5 group-hover/hall:bg-slate-800/60";
     let textStyle = "text-white group-hover/hall:text-indigo-200";
     let iconColor = "text-slate-400 group-hover/hall:text-indigo-400";
@@ -100,7 +90,6 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
             group/scroll
         `}>
             
-            {/* Hall Header */}
             <div 
                 onClick={() => onHallClick(hall.name)}
                 className={`
@@ -109,7 +98,6 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                     ${headerStyle}
                 `}
             >
-                {/* Background Text (Number + Category) */}
                 <span className={`absolute -right-2 -top-4 text-7xl font-black pointer-events-none select-none whitespace-nowrap transition-colors ${colStatus === 'default' ? 'text-white/5 group-hover/hall:text-indigo-500/10' : 'text-white/5'}`}>
                     {displayName} {categoryName}
                 </span>
@@ -119,7 +107,7 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                          <span className={`hall-header-subtitle text-xs font-bold uppercase tracking-widest mb-0.5 ${colStatus === 'default' ? 'text-slate-500' : 'text-white/60'}`}>Кинозал</span>
                          <h2 className={`text-2xl font-black transition-colors flex items-center gap-2 ${textStyle}`}>
                             <span>{displayName}</span>
-                            {categoryName && <span>{categoryName}</span>}
+                            {categoryName && <span className="text-lg opacity-60">/ {categoryName}</span>}
                          </h2>
                     </div>
                     
@@ -134,7 +122,6 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                 </div>
             </div>
 
-            {/* Sessions Scrollable Area - WRAPPED for Custom Scrollbar */}
             <div className="flex-1 relative overflow-hidden">
                 <div 
                     ref={scrollRef}
@@ -157,6 +144,7 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                                     selectedMovieName={selectedMovieName}
                                     onSelectMovie={onSelectMovie}
                                     onStatusChange={onStatusChange}
+                                    updateSetting={updateSetting}
                                 />
                             ))
                         ) : (
@@ -168,7 +156,6 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
                     )}
                 </div>
                 
-                {/* Custom Scroll Panel */}
                 <VerticalScrollPanel 
                     targetRef={scrollRef} 
                     topOffset="4px" 
@@ -179,7 +166,7 @@ const HallColumn = memo(({ hall, sessions, onHallClick, settings, isLoading, wid
     );
 });
 
-export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, onStatusChange, refreshKey }) => {
+export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onHallClick, settings, isLoading, columnWidthClass = "w-full", selectedMovieName, onSelectMovie, onStatusChange, updateSetting, refreshKey }) => {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [visibleHalls, setVisibleHalls] = useState<Set<string>>(new Set());
@@ -190,46 +177,82 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
 
   const sessionsByHall = useMemo(() => {
     const grouped: Record<string, MovieSession[]> = {};
-    // Initialize for all halls present in DB
-    halls.forEach(h => {
-        grouped[h.name] = [];
-    });
+    halls.forEach(h => { grouped[h.name] = []; });
     
     if (sessions) {
         sessions.forEach(session => {
-          // If session belongs to a hall not in our list (e.g. deleted), add it dynamically or skip
-          if (!grouped[session.hall_name]) {
-            grouped[session.hall_name] = [];
-          }
+          if (!grouped[session.hall_name]) { grouped[session.hall_name] = []; }
           grouped[session.hall_name].push(session);
         });
     }
 
+    const timeToMinutes = (timeStr: string) => {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return hours * 60 + minutes;
+    };
+
+    const startMinutes = timeToMinutes(settings.workingHoursStart);
+    const endMinutes = timeToMinutes(settings.workingHoursEnd);
+
     Object.keys(grouped).forEach(key => {
-        grouped[key].sort((a, b) => a.time.localeCompare(b.time));
+        // Разделяем сеансы на дневные и ночные
+        const daySessions: MovieSession[] = [];
+        const nightSessions: MovieSession[] = [];
+
+        grouped[key].forEach(session => {
+            const sessionMinutes = timeToMinutes(session.time);
+            
+            // Определяем тип сеанса
+            let isNightSession = false;
+            
+            if (endMinutes < startMinutes) {
+                // Рабочий день переходит через полночь (например, 09:00 - 02:00)
+                if (sessionMinutes >= startMinutes) {
+                    // Дневной сеанс (09:00 - 23:59)
+                    isNightSession = false;
+                } else if (sessionMinutes >= 0 && sessionMinutes < endMinutes) {
+                    // Ночной сеанс (00:00 - 02:00) - конец рабочего дня
+                    isNightSession = true;
+                } else {
+                    // Сеансы между 02:00 и 09:00 - также считаем ночными (показываем в конце)
+                    isNightSession = true;
+                }
+            } else {
+                // Обычный рабочий день (например, 09:00 - 23:00)
+                if (sessionMinutes >= startMinutes && sessionMinutes < endMinutes) {
+                    isNightSession = false;
+                } else {
+                    isNightSession = true;
+                }
+            }
+
+            if (isNightSession) {
+                nightSessions.push(session);
+            } else {
+                daySessions.push(session);
+            }
+        });
+
+        // Сортируем каждую группу отдельно
+        daySessions.sort((a, b) => a.time.localeCompare(b.time));
+        nightSessions.sort((a, b) => a.time.localeCompare(b.time));
+
+        // Объединяем: сначала дневные, потом ночные
+        grouped[key] = [...daySessions, ...nightSessions];
     });
 
     return grouped;
-  }, [sessions, halls]);
+  }, [sessions, halls, settings.workingHoursStart, settings.workingHoursEnd]);
 
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
-
-    const checkScrollable = () => {
-        setIsScrollable(container.scrollWidth > container.clientWidth);
-    };
-    
+    const checkScrollable = () => { setIsScrollable(container.scrollWidth > container.clientWidth); };
     const debouncedCheck = () => setTimeout(checkScrollable, 50);
-
     const observer = new ResizeObserver(debouncedCheck);
     observer.observe(container);
-    if (container.firstElementChild) {
-        observer.observe(container.firstElementChild);
-    }
-    
+    if (container.firstElementChild) { observer.observe(container.firstElementChild); }
     debouncedCheck();
-
     return () => observer.disconnect();
   }, [isLoading, halls]);
 
@@ -254,9 +277,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
       if (!scrollContainerRef.current) return;
       const { scrollWidth, clientWidth } = scrollContainerRef.current;
       const maxScroll = scrollWidth - clientWidth;
-      if (maxScroll > 0) {
-          scrollContainerRef.current.scrollLeft = newRatio * maxScroll;
-      }
+      if (maxScroll > 0) { scrollContainerRef.current.scrollLeft = newRatio * maxScroll; }
   }, []);
 
   const handleStep = useCallback((direction: number) => {
@@ -265,18 +286,12 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
     scrollContainerRef.current.scrollBy({ left: scrollAmount * direction, behavior: 'smooth' });
   }, []);
 
-  // --- Keyboard & Wheel Navigation ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        // Prevent scrolling if user is typing in a form field
         const target = e.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
         if (!scrollContainerRef.current) return;
-        
-        // Scroll by the viewport width (exactly the amount of visible columns)
         const scrollAmount = scrollContainerRef.current.clientWidth;
-
         if (e.key === 'ArrowLeft') {
             e.preventDefault();
             scrollContainerRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -285,13 +300,12 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
             scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative animate-in fade-in duration-500">
         <div 
             ref={scrollContainerRef}
             onScroll={handleScroll}
@@ -312,11 +326,11 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({ sessions, halls, onH
                         selectedMovieName={selectedMovieName}
                         onSelectMovie={onSelectMovie}
                         onStatusChange={onStatusChange}
+                        updateSetting={updateSetting}
                         refreshKey={refreshKey}
                     />
                     ))
                 ) : (
-                    // Fallback if no halls found in DB, just to show something or empty state
                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
                         <MonitorPlay size={64} className="mb-4 opacity-50"/>
                         <p className="text-xl font-bold">Залы не найдены</p>

@@ -17,6 +17,8 @@ interface HallWeeklyViewProps {
   selectedMovieName: string | null;
   onSelectMovie: (name: string) => void;
   onStatusChange?: (id: string, status: ContentStatus) => void;
+  // Added updateSetting to support QuickSettingsMenu in MovieCard
+  updateSetting?: (key: keyof AppSettings, value: any) => void;
   refreshKey: number;
 }
 
@@ -32,6 +34,8 @@ interface DayColumnProps {
     selectedMovieName: string | null;
     onSelectMovie: (name: string) => void;
     onStatusChange?: (id: string, status: ContentStatus) => void;
+    // Added updateSetting to support QuickSettingsMenu in MovieCard
+    updateSetting?: (key: keyof AppSettings, value: any) => void;
     refreshKey: number;
 }
 
@@ -44,7 +48,7 @@ const getColumnStatus = (sessions: MovieSession[]) => {
     return 'default';
 };
 
-const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, refreshKey }: DayColumnProps) => {
+const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, widthClass, onVisibilityChange, selectedMovieName, onSelectMovie, onStatusChange, updateSetting, refreshKey }: DayColumnProps) => {
     const columnRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const dateStr = formatDate(date);
@@ -153,6 +157,8 @@ const DayColumn = memo(({ date, todayStr, sessions, settings, loading, index, wi
                                     selectedMovieName={selectedMovieName}
                                     onSelectMovie={onSelectMovie}
                                     onStatusChange={onStatusChange}
+                                    // Added updateSetting to MovieCard
+                                    updateSetting={updateSetting}
                                 />
                             ))
                         ) : (
@@ -184,6 +190,8 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
   selectedMovieName,
   onSelectMovie,
   onStatusChange,
+  // destructured updateSetting
+  updateSetting,
   refreshKey,
 }) => {
   
@@ -314,6 +322,8 @@ export const HallWeeklyView: React.FC<HallWeeklyViewProps> = ({
                     selectedMovieName={selectedMovieName}
                     onSelectMovie={onSelectMovie}
                     onStatusChange={onStatusChange}
+                    // Pass updateSetting to DayColumn
+                    updateSetting={updateSetting}
                     refreshKey={refreshKey}
                 />
              );

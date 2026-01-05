@@ -9,19 +9,11 @@ export type RefreshStatus = 'idle' | 'loading' | 'success' | 'error';
 export const useAppLogic = () => {
   const [currentDate, setCurrentDate] = useState<string>(formatDate(new Date()));
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'dashboard' });
+  const [viewHistory, setViewHistory] = useState<ViewMode[]>([]);
   const [isLogoMenuOpen, setIsLogoMenuOpen] = useState(false);
   
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-      serverUrl: '',
-      apiKey: '',
-      useMockDataFallback: false,
-      highlightCurrent: true,
-      fontSize: 'medium',
-      cardDensity: 'default',
-      theme: 'default',
-      enableAnimations: true,
-      autoRefreshInterval: 0,
-  });
+  // Загружаем настройки из BackendService (который уже загрузил их из localStorage)
+  const [appSettings, setAppSettings] = useState<AppSettings>(BackendService.config);
 
   const [currentDashboardSessions, setCurrentDashboardSessions] = useState<MovieSession[]>([]);
   const [currentWeeklyHallSessions, setCurrentWeeklyHallSessions] = useState<MovieSession[]>([]);
@@ -29,158 +21,147 @@ export const useAppLogic = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true); 
   const [refreshStatus, setRefreshStatus] = useState<RefreshStatus>('idle'); 
   const [refreshKey, setRefreshKey] = useState(Date.now());
-  const refreshTimerRef = useRef<any>(null);
-  const settingsDebounceRef = useRef<any>(null);
-
   const [halls, setHalls] = useState<Hall[]>([]);
+  const [availableDates, setAvailableDates] = useState<string[]>([]); // New State
   const [selectedMovieName, setSelectedMovieName] = useState<string | null>(null);
 
   const loadData = useCallback(async (silent = false) => {
     if (!silent) setIsLoading(true);
-    const hallsData = await BackendService.getHalls();
-    setHalls(hallsData);
+    try {
+        const hallsData = await BackendService.getHalls();
+        setHalls(hallsData);
 
-    if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
-        const sessions = await BackendService.getDailySchedule(currentDate);
-        setCurrentDashboardSessions(sessions);
-    } else if (viewMode.type === 'hall_weekly') {
-        const sessions = await BackendService.getWeeklyHallSchedule(viewMode.hallName, currentDate);
-        setCurrentWeeklyHallSessions(sessions);
-    }
-    if (!silent) setIsLoading(false);
-  }, [currentDate, viewMode]);
-
-  useEffect(() => {
-    const interval = appSettings.autoRefreshInterval;
-    if (interval === 0) return;
-
-    const timer = setInterval(() => {
-      BackendService.syncAllData(true); 
-    }, interval * 60 * 1000);
-
-    return () => clearInterval(timer);
-  }, [appSettings.autoRefreshInterval]);
-
-  useEffect(() => {
-    return BackendService.subscribe(() => {
-        const storedSettings = BackendService.config;
-        if (storedSettings) {
-            setAppSettings(prev => ({ ...prev, ...storedSettings }));
-        }
+        const dates = await BackendService.getAvailableDates();
+        setAvailableDates(dates);
         
-        const serviceStatus = BackendService.connectionStatus;
-        if (refreshStatus === 'idle' && (serviceStatus === 'connected' || serviceStatus === 'error')) {
-            loadData(true);
+        // Логика загрузки данных в зависимости от режима просмотра
+        if (viewMode.type === 'dashboard' || viewMode.type === 'schedule') {
+            const sessions = await BackendService.getDailySchedule(currentDate);
+            setCurrentDashboardSessions(sessions);
+        } else if (viewMode.type === 'hall_weekly') {
+            const datesArr = getWeeklyDates(currentDate);
+            const dateStrings = datesArr.map(d => formatDate(d));
+            const sessions = await BackendService.getWeeklySchedule(viewMode.hallName, dateStrings);
+            setCurrentWeeklyHallSessions(sessions);
         }
-    });
-  }, [loadData, refreshStatus]);
 
-  const updateSetting = async (key: keyof AppSettings, value: any) => {
-      setAppSettings(prev => ({ ...prev, [key]: value }));
-      if (key === 'serverUrl') {
-          if (settingsDebounceRef.current) clearTimeout(settingsDebounceRef.current);
-          settingsDebounceRef.current = setTimeout(() => {
-              BackendService.saveSetting(key, value);
-          }, 500);
-      } else {
-          await BackendService.saveSetting(key, value);
-      }
-  };
+    } catch (e) {
+        console.error("Data load failed", e);
+    } finally {
+        if (!silent) setIsLoading(false);
+    }
+  }, [currentDate, viewMode]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleRefresh = async () => {
-    if (refreshStatus === 'loading') return;
-    
-    const startTime = Date.now();
-    setRefreshStatus('loading');
-    
-    try {
-        await BackendService.syncScheduleOnly(true);
-        await loadData(true);
-        
-        const elapsedTime = Date.now() - startTime;
-        const minWait = 1200; // Немного увеличили для "солидности"
-        if (elapsedTime < minWait) {
-            await new Promise(resolve => setTimeout(resolve, minWait - elapsedTime));
-        }
+  // Подписка на обновления настроек из сервиса
+  useEffect(() => {
+    return BackendService.subscribe(() => {
+        setAppSettings({...BackendService.config});
+    });
+  }, []);
 
-        setRefreshKey(Date.now());
-        setRefreshStatus('success');
-    } catch (e) {
-        setRefreshStatus('error');
-    } finally {
-        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = setTimeout(() => {
-            setRefreshStatus('idle');
-        }, 2000);
+  // Автообновление данных
+  useEffect(() => {
+    if (!appSettings.autoRefreshInterval || appSettings.autoRefreshInterval <= 0) {
+        return;
     }
+
+    const intervalMs = appSettings.autoRefreshInterval * 60 * 1000; // конвертируем минуты в миллисекунды
+    
+    const intervalId = setInterval(async () => {
+        try {
+            console.log(`[AutoRefresh] Updating data every ${appSettings.autoRefreshInterval}min`);
+            await BackendService.syncAllData();
+            await loadData(true);
+            setRefreshKey(Date.now());
+        } catch (e) {
+            console.error('[AutoRefresh] Failed to update:', e);
+        }
+    }, intervalMs);
+
+    return () => clearInterval(intervalId);
+  }, [appSettings.autoRefreshInterval, loadData]);
+
+  const handleStatusChange = async (sessionId: string, newStatus: ContentStatus) => {
+    // Находим сессию для отправки на бэкенд
+    const sessionToUpdate = [...currentDashboardSessions, ...currentWeeklyHallSessions].find(s => s.id === sessionId);
+    
+    if (!sessionToUpdate) return;
+    
+    // 1. Сначала мгновенно обновляем UI для всех сессий фильма в зале
+    const updateSessionList = (list: MovieSession[]) => list.map(s => {
+        // Обновляем если это та же сессия ИЛИ тот же фильм в том же зале
+        if (s.id === sessionId || (s.name === sessionToUpdate.name && s.hall_name === sessionToUpdate.hall_name)) {
+            return { ...s, content_status: newStatus };
+        }
+        return s;
+    });
+    
+    setCurrentDashboardSessions(prev => updateSessionList(prev));
+    setCurrentWeeklyHallSessions(prev => updateSessionList(prev));
+    
+    // 2. Асинхронно отправляем на бэкенд (не блокируя UI)
+    // Данные сохраняются в фоне после визуального обновления
+    BackendService.setSessionStatus(sessionToUpdate, newStatus).catch(console.error);
+  };
+
+  const updateSetting = async (key: keyof AppSettings, value: any) => {
+      // Обновляем в сервисе (там же сохраняется в localStorage)
+      await BackendService.saveSetting(key, value);
+  };
+
+  const handleRefresh = async () => {
+      if (refreshStatus === 'loading') return;
+      
+      setRefreshStatus('loading');
+      try {
+          if (!appSettings.serverUrl) {
+              // Если IP не указан, имитируем ошибку для UI
+              throw new Error("No server URL configured");
+          }
+          await BackendService.syncAllData();
+          await loadData(true);
+          setRefreshStatus('success');
+          setRefreshKey(Date.now());
+      } catch (e) {
+          setRefreshStatus('error');
+      } finally {
+          setTimeout(() => setRefreshStatus('idle'), 2000);
+      }
   };
 
   const handleHallClick = (hallName: string) => {
-    setViewMode({ type: 'hall_weekly', hallName, centerDate: currentDate });
+      handleNavigate({ type: 'hall_weekly', hallName, centerDate: currentDate });
   };
 
-  const handleNavigate = (mode: ViewMode) => {
-    setViewMode(mode);
-    setIsLogoMenuOpen(false);
+  const handleNavigate = (m: ViewMode) => {
+      // Avoid pushing to history if clicking the same main view, but otherwise push
+      if (m.type !== viewMode.type || (m.type === 'hall_weekly' && viewMode.type === 'hall_weekly' && m.hallName !== viewMode.hallName)) {
+        setViewHistory(prev => [...prev, viewMode]);
+      }
+      setViewMode(m);
   };
 
-  const handleSelectMovie = (name: string) => {
-      setSelectedMovieName(prev => prev === name ? null : name);
-  };
-
-  const handleStatusChange = async (sessionId: string, newStatus: ContentStatus) => {
-    let sessionToUpdate: MovieSession | undefined;
-
-    setCurrentDashboardSessions(prev => {
-        return prev.map(s => {
-            if (s.id === sessionId) {
-                sessionToUpdate = s;
-                return { ...s, content_status: newStatus };
-            }
-            return s;
-        });
-    });
-
-    setCurrentWeeklyHallSessions(prev => {
-        return prev.map(s => {
-             if (s.id === sessionId) {
-                 sessionToUpdate = s;
-                 return { ...s, content_status: newStatus };
-             }
-             return s;
-        });
-    });
-
-    if (sessionToUpdate) {
-        await BackendService.setSessionStatus(sessionToUpdate, newStatus);
-        await BackendService.syncStatusesOnly(true);
-    }
+  const handleBack = () => {
+      if (viewHistory.length > 0) {
+          const newHistory = [...viewHistory];
+          const prevView = newHistory.pop();
+          setViewHistory(newHistory);
+          if (prevView) setViewMode(prevView);
+      } else {
+          setViewMode({ type: 'dashboard' });
+      }
   };
 
   return {
-    currentDate,
-    setCurrentDate,
-    viewMode,
-    isLoading,
-    refreshStatus,
-    currentDashboardSessions,
-    currentWeeklyHallSessions,
-    appSettings,
-    halls,
-    refreshKey,
-    selectedMovieName,
-    isLogoMenuOpen,
-    setIsLogoMenuOpen,
-    handleRefresh,
-    handleHallClick,
-    handleNavigate,
-    handleSelectMovie,
-    handleStatusChange, 
-    updateSetting,
-    getWeeklyDates
+    currentDate, setCurrentDate, viewMode, isLoading, refreshStatus, 
+    currentDashboardSessions, currentWeeklyHallSessions,
+    appSettings, halls, refreshKey, selectedMovieName, availableDates,
+    isLogoMenuOpen, setIsLogoMenuOpen, handleRefresh, handleHallClick,
+    handleNavigate, handleBack, handleSelectMovie: (n: string) => setSelectedMovieName(p => p === n ? null : n),
+    handleStatusChange, updateSetting, getWeeklyDates
   };
 };

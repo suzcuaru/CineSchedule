@@ -74,12 +74,21 @@ export const getCalendarDays = (currentDateStr: string): CalendarDay[] => {
  */
 export const normalizeMovieTitle = (title: string): string => {
     if (!title) return '';
-    let normalized = title.toLowerCase();
-    const noise = ['предсеансовое обслуживание', 'предсеансовое обсл.', 'предсеансовое', 'предсеанс. обсл.', 'предсеанс', 'обслуживание'];
+    let normalized = String(title).toLowerCase();
+    
+    // Удаляем шумные приставки
+    const noise = [
+      'предсеансовое обслуживание', 'предсеансовое обсл.', 
+      'предсеансовое', 'предсеанс. обсл.', 'предсеанс', 'обслуживание'
+    ];
     noise.forEach(n => {
         if (normalized.includes(n)) normalized = normalized.split(n)[0];
     });
+
+    // Удаляем спецсимволы и скобки
     normalized = normalized.replace(/\(.*\)/g, '').replace(/\[.*\]/g, '');
+    
+    // Оставляем только буквы и цифры
     return normalized.replace(/[^a-zа-яё0-9]/gi, '').trim();
 };
 
@@ -87,28 +96,44 @@ export const parseDurationToMinutes = (duration: string | number | undefined | n
     if (!duration) return 0;
     if (typeof duration === 'number') return duration;
     
-    const parts = String(duration).split(':').map(Number);
+    const parts = String(duration).trim().split(':').map(Number);
     if (parts.length === 3) {
-        // HH:MM:SS -> Minutes
-        return Math.floor(parts[0] * 60 + parts[1] + parts[2] / 60);
+        // H:MM:SS
+        return parts[0] * 60 + parts[1] + (parts[2] / 60);
     }
     if (parts.length === 2) {
-        // MM:SS -> Minutes
-        return Math.floor(parts[0] + parts[1] / 60);
+        // MM:SS
+        return parts[0] + (parts[1] / 60);
     }
-    if (parts.length === 1) {
-        return Number(duration) || 0;
-    }
-    return 0;
+    return Number(duration) || 0;
 };
 
-export const parseDurationString = (durationStr: string | number): number => {
-    if (typeof durationStr === 'number') return durationStr;
-    if (!durationStr || typeof durationStr !== 'string') return 0;
-    const parts = durationStr.split(':').map(Number);
-    if (parts.some(isNaN)) return 0;
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 1) return parts[0] * 60;
-    return 0;
+export const parseDurationToSeconds = (duration: string | number | undefined | null): number => {
+    if (!duration) return 0;
+    if (typeof duration === 'number') return duration;
+    
+    const parts = String(duration).trim().split(':').map(Number);
+    if (parts.length === 3) {
+        // H:MM:SS
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    if (parts.length === 2) {
+        // MM:SS
+        return parts[0] * 60 + parts[1];
+    }
+    return Number(duration) || 0;
+};
+
+// Helper to ensure we never pass an object to React children
+export const safeString = (val: any): string => {
+    if (!val) return "";
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (typeof val === 'object') {
+        // If it's a related model object (common in Laravel/API responses), try to find a name
+        if (val.name && typeof val.name === 'string') return val.name;
+        // Fallback for unexpected objects
+        return ""; 
+    }
+    return String(val);
 };
