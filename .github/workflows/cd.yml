@@ -83,13 +83,18 @@ jobs:
     name: Создание GitHub Release
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     
     steps:
       - name: Клонирование репозитория
         uses: actions/checkout@v4
+
+      - name: Подготовка имени образа в нижнем регистре
+        id: prep
+        run: |
+          echo "IMAGE_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Установка Node.js
         uses: actions/setup-node@v4
@@ -116,34 +121,34 @@ jobs:
           
           ## Docker-образы
           
-          ### Для Linux AMD64
+          ### Версия ${{ steps.get_version.outputs.VERSION }}
           \`\`\`bash
-          docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
-          docker run -p 8085:8085 ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+          docker pull ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}
+          docker run -p 8085:8085 ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}
           \`\`\`
           
-          ### Для Linux ARM64
+          ### Последняя версия (latest)
           \`\`\`bash
-          docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
-          docker run -p 8085:8085 ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+          docker pull ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:latest
+          docker run -p 8085:8085 ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:latest
           \`\`\`
           
-          ### Последняя версия
+          ### По SHA коммита
           \`\`\`bash
-          docker pull ghcr.io/${{ github.repository }}:latest
-          docker run -p 8085:8085 ghcr.io/${{ github.repository }}:latest
+          docker pull ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ github.sha }}
+          docker run -p 8085:8085 ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ github.sha }}
           \`\`\`
           
           ## Версия проекта
           - **Версия:** ${{ steps.get_version.outputs.VERSION }}
           - **Дата сборки:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Commit:** ${{ github.sha }}
-          - **Branch:** ${{ github.ref_name }}
+          - **Tag:** ${{ github.ref_name }}
           
-          ## Статистика сборки
-          - **Node.js:** 22
-          - **Vite:** $(npm list vite | grep vite | awk -F@ '{print $2}' | head -n1 || echo "latest")
-          - **React:** $(npm list react | grep react | awk -F@ '{print $2}' | head -n1 || echo "latest")
+          ## Платформы
+          Поддерживаются архитектуры:
+          - linux/amd64
+          - linux/arm64
           
           ## Использование
           
@@ -151,7 +156,7 @@ jobs:
           \`\`\`yaml
           services:
             cineschedule:
-              image: ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}
+              image: ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}
               ports:
                 - "8085:8085"
               restart: unless-stopped
@@ -159,7 +164,7 @@ jobs:
           
           ### С использованием kubectl (Kubernetes)
           \`\`\`bash
-          kubectl run cineschedule --image=ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }} --port=8085
+          kubectl run cineschedule --image=ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }} --port=8085
           kubectl expose deployment cineschedule --type=LoadBalancer --port=8085
           \`\`\`
           
@@ -191,5 +196,5 @@ jobs:
       - name: Уведомление о создании релиза
         run: |
           echo "✅ Релиз v${{ steps.get_version.outputs.VERSION }} успешно создан!"
-          echo "📦 Docker-образ: ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.VERSION }}"
+          echo "📦 Docker-образ: ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}"
           echo "🔗 Ссылка на релиз: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
