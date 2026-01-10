@@ -173,7 +173,7 @@ cineschedule/
 
 - **Разработчик**: Suzcuaru
 - **Telegram чат поддержки**: https://t.me/+7t0HIRR20gBlOTZi
-- **Веб-сайт**: cinetech.ru
+- **Веб-сайт**: https://suzcuaru.github.io/CineSchedule.io/
 - **GitHub**: https://github.com/suzcuaru/CineSchedule
 
 ### Сообщить о проблеме
