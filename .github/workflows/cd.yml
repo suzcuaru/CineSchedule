@@ -85,11 +85,18 @@ jobs:
     name: Создание GitHub Release
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
     
     steps:
+      - name: Отладочная информация
+        run: |
+          echo "🔍 DEBUG: github.ref = ${{ github.ref }}"
+          echo "🔍 DEBUG: github.ref_name = ${{ github.ref_name }}"
+          echo "🔍 DEBUG: github.sha = ${{ github.sha }}"
+          echo "🔍 DEBUG: github.event_name = ${{ github.event_name }}"
+
       - name: Клонирование репозитория
         uses: actions/checkout@v4
         with:
@@ -99,19 +106,45 @@ jobs:
         id: check_branch
         run: |
           # Проверяем, что тег находится на ветке main
+          echo "🔍 DEBUG: Checking if tag is on main branch..."
+          git branch -r --contains ${{ github.sha }}
           BRANCH=$(git branch -r --contains ${{ github.sha }} | grep -E 'origin/main$' || echo '')
+          echo "🔍 DEBUG: BRANCH = $BRANCH"
           if [ -n "$BRANCH" ]; then
             echo "on_main=true" >> $GITHUB_OUTPUT
             echo "✅ Тег находится на ветке main"
           else
             echo "on_main=false" >> $GITHUB_OUTPUT
             echo "ℹ️ Тег не на ветке main, релиз не будет создан"
+            echo "⚠️ Внимание: релизы создаются только для тегов на ветке main"
           fi
+
+      - name: Получение списка изменений
+        if: steps.check_branch.outputs.on_main == 'true'
+        id: changes
+        run: |
+          # Получаем предыдущий тег
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -n "$PREV_TAG" ]; then
+            echo "📝 Изменения с $PREV_TAG по ${{ github.ref_name }}:"
+            git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" $PREV_TAG..HEAD)
+          else
+            echo "📝 Все изменения для этого релиза:"
+            git log --pretty=format:"- %s (%h)"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)")
+          fi
+          
+          # Сохраняем changelog в файл
+          echo "$CHANGELOG" > changes.txt
+          echo "CHANGES_CREATED=true" >> $GITHUB_OUTPUT
 
       - name: Пропуск создания релиза (не на main)
         if: steps.check_branch.outputs.on_main == 'false'
         run: |
           echo "::notice::Релиз не создается, так как тег не на ветке main"
+          echo "::notice::Для создания релиза: создайте и запушьте тег на ветку main"
           exit 0
 
       - name: Подготовка имени образа в нижнем регистре
@@ -142,11 +175,18 @@ jobs:
           mkdir -p release-files
           cp Dockerfile release-files/Dockerfile
           
+          # Читаем список изменений
+          CHANGELOG=$(cat changes.txt)
+          
           # Создаем информацию о сборке
           cat > release-files/BUILD_INFO.md << EOF
-          # Информация о сборке ${{ steps.get_version.outputs.VERSION }}
+          # 🎉 Релиз версии v${{ steps.get_version.outputs.VERSION }}
           
-          ## Docker-образы
+          ## 📋 Что нового
+          
+          $CHANGELOG
+          
+          ## 🐳 Docker-образы
           
           ### Версия ${{ steps.get_version.outputs.VERSION }}
           \`\`\`bash
