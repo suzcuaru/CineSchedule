@@ -1,12 +1,16 @@
 {
   "name": "cineschedule",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.0.3",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "node scripts/sync-version.js && vite",
+    "build": "node scripts/sync-version.js && vite build",
+    "preview": "node scripts/sync-version.js && vite preview",
+    "sync-version": "node scripts/sync-version.js",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'Linting not configured yet'",
+    "test": "echo 'Tests not configured yet'"
   },
   "dependencies": {
     "react": "^19.2.0",

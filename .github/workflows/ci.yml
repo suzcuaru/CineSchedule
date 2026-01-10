@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Тестирование и проверка кода
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Установка Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Проверка TypeScript
+        run: npm run type-check || npx tsc --noEmit
+
+      - name: Сборка проекта
+        run: npm run build
+
+      - name: Проверка размера сборки
+        run: |
+          echo "Размер dist директории:"
+          du -sh dist/
+
+  lint:
+    name: Линтинг
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: Установка Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Линтинг (если есть ESLint)
+        run: npm run lint || echo "Lint script not configured"
+        continue-on-error: true

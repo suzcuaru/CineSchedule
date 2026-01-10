@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cineschedule:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cineschedule-app
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - cineschedule-network
+
+networks:
+  cineschedule-network:
+    driver: bridge
