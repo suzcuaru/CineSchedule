@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Клонирование репозитория
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Подготовка имени образа в нижнем регистре
         id: prep
@@ -90,18 +92,42 @@ jobs:
     steps:
       - name: Клонирование репозитория
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Проверка ветки тега
+        id: check_branch
+        run: |
+          # Проверяем, что тег находится на ветке main
+          BRANCH=$(git branch -r --contains ${{ github.sha }} | grep -E 'origin/main$' || echo '')
+          if [ -n "$BRANCH" ]; then
+            echo "on_main=true" >> $GITHUB_OUTPUT
+            echo "✅ Тег находится на ветке main"
+          else
+            echo "on_main=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Тег не на ветке main, релиз не будет создан"
+          fi
+
+      - name: Пропуск создания релиза (не на main)
+        if: steps.check_branch.outputs.on_main == 'false'
+        run: |
+          echo "::notice::Релиз не создается, так как тег не на ветке main"
+          exit 0
 
       - name: Подготовка имени образа в нижнем регистре
+        if: steps.check_branch.outputs.on_main == 'true'
         id: prep
         run: |
           echo "IMAGE_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Установка Node.js
+        if: steps.check_branch.outputs.on_main == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Получение версии из config/appData.ts
+        if: steps.check_branch.outputs.on_main == 'true'
         id: get_version
         run: |
           # Извлекаем версию из файла config/appData.ts
@@ -110,6 +136,7 @@ jobs:
           echo "📦 Версия из config/appData.ts: $VERSION"
 
       - name: Подготовка файлов для релиза
+        if: steps.check_branch.outputs.on_main == 'true'
         run: |
           # Копируем Dockerfile в отдельную папку
           mkdir -p release-files
@@ -180,6 +207,7 @@ jobs:
           EOF
 
       - name: Создание GitHub Release
+        if: steps.check_branch.outputs.on_main == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -194,6 +222,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Уведомление о создании релиза
+        if: steps.check_branch.outputs.on_main == 'true'
         run: |
           echo "✅ Релиз v${{ steps.get_version.outputs.VERSION }} успешно создан!"
           echo "📦 Docker-образ: ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}"
