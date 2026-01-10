@@ -165,7 +165,10 @@ jobs:
         run: |
           # Извлекаем версию из файла config/appData.ts
           VERSION=$(grep -oP '(?<=version: ")[^"]*' config/appData.ts | head -n1)
+          # Убираем префикс "v" если он есть
+          VERSION=${VERSION#v}
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "CLEAN_VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "📦 Версия из config/appData.ts: $VERSION"
 
       - name: Подготовка файлов для релиза
@@ -180,7 +183,7 @@ jobs:
           
           # Создаем информацию о сборке
           cat > release-files/BUILD_INFO.md << EOF
-          # 🎉 Релиз версии v${{ steps.get_version.outputs.VERSION }}
+          # 🎉 Релиз версии ${{ steps.get_version.outputs.VERSION }}
           
           ## 📋 Что нового
           
@@ -188,7 +191,7 @@ jobs:
           
           ## 🐳 Docker-образы
           
-          ### Версия ${{ steps.get_version.outputs.VERSION }}
+          ### Версия v${{ steps.get_version.outputs.VERSION }}
           \`\`\`bash
           docker pull ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}
           docker run -p 8085:8085 ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}
@@ -251,7 +254,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
+          name: Релиз версии ${{ steps.get_version.outputs.VERSION }}
           body_path: release-files/BUILD_INFO.md
           files: |
             release-files/Dockerfile
@@ -264,6 +267,6 @@ jobs:
       - name: Уведомление о создании релиза
         if: steps.check_branch.outputs.on_main == 'true'
         run: |
-          echo "✅ Релиз v${{ steps.get_version.outputs.VERSION }} успешно создан!"
+          echo "✅ Релиз версии ${{ steps.get_version.outputs.VERSION }} успешно создан!"
           echo "📦 Docker-образ: ghcr.io/${{ steps.prep.outputs.IMAGE_LOWER }}:${{ steps.get_version.outputs.VERSION }}"
           echo "🔗 Ссылка на релиз: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
